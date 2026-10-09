@@ -1,6 +1,6 @@
 # CleanQuest — pripravenosť prvého testovacieho vydania
 
-Audit a kontroly vykonané **9. októbra 2026**. Výsledok: **pripravené na prvé testovanie na reálnom iPhone po schválenom nasadení**. Žiadny zostávajúci lokálny blokátor sa vo vykonaných kontrolách neprejavil. Inštalácia na fyzickom iPhone a prvý beh GitHub Actions ešte nie sú overené.
+Audit, kontroly a schválené prvé nasadenie vykonané **9. októbra 2026**. Výsledok: **[CleanQuest je publikovaný](https://patus112.github.io/cleanquest/) a pripravený na testovanie na reálnom iPhone**. [GitHub Actions kontroly aj deploy prešli](https://github.com/patus112/cleanquest/actions/runs/37917411857). Inštalácia na fyzickom iPhone zostáva manuálna.
 
 ## Skutočný stav implementácie
 
@@ -37,7 +37,9 @@ Pri následnom teste na iPhone sa prejavila chyba vytvorenia domova cez miestnu 
 | Offline + perzistencia         | Prešli v oboch enginoch; dokončenie, export a obnova bez siete, obnovenie stránok a opätovné otvorenie                                                        |
 | Závislosti                     | `npm audit --audit-level=moderate`: 0 známych zraniteľností                                                                                                   |
 
-YAML workflow bol lokálne načítaný a overené boli jeho QA príkazy, Node 22, Pages artifact, povolenia a podmienka schválenia. Miestne odkazy v návodoch aj posledný produkčný balík prešli kontrolou. Skutočný vzdialený beh workflow zostáva neoverený.
+YAML workflow a skutočný vzdialený beh boli overené: QA príkazy, Node 22, Pages artifact, povolenia a podmienka schválenia fungujú. Prvý CI beh mal 22/24 úspešných mobilných testov: pripravený domov sa vytvoril, ale päťsekundový limit čakania bol pre pomalší runner krátky. Limit bol upravený na 20 sekúnd bez odstránenia kontroly chýb, perzistencie alebo DA; lokálne prešli všetky štyri regresné scenáre a celý druhý CI beh prešiel 159 + 24 testami a nasadením.
+
+Na skutočnej HTTPS adrese následne prešli **2/2 ďalšie izolované Chromium/WebKit testy**: uloženie dokončenia a 10 DA, všetkých päť hash odkazov a ich refresh online/offline, presný service-worker scope, ikony a opätovné otvorenie so zachovanými údajmi. Samostatná HTTP kontrola overila stránku, 7 HTML assetov, manifest `/cleanquest/`, ikony a service worker. Používateľov profil prehliadača sa pri týchto testoch nepoužíval.
 
 Build vypisuje neblokujúce upozornenia na komentáre upstream knižnice Zod. Po opravách nezostali zlyhávajúce automatické kontroly. WebKit testy nie sú testom fyzického iPhone; natívny dialóg zdieľania, VoiceOver, skutočné bezpečné okraje, správanie iOS pri nedostatku miesta a prijatie ďalšej vydanej verzie zostávajú manuálne.
 
@@ -45,6 +47,6 @@ Build vypisuje neblokujúce upozornenia na komentáre upstream knižnice Zod. Po
 
 Manifest v slovenčine má `id`, `start_url` a `scope` `/cleanquest/`, režim `standalone`, ikony 192/512 px, maskovateľnú 512 px ikonu a Apple 180 px ikonu. Service worker je `/cleanquest/sw.js` so scope `/cleanquest/`, cache obsahuje všetky potrebné miestne assety. Nová verzia sa aktivuje tlačidlom **Aktualizovať**; staré cache sa čistia bez vymazania IndexedDB. Reálne prijatie nového vydania na iPhone čaká na manuálny test.
 
-Hash odkazy, napr. `/cleanquest/#/tasks?tab=rooms`, fungujú na statickom hostingu bez serverového presmerovania. HTTPS GitHub Pages je pripravené konfiguráciou, **aplikácia ešte nie je publikovaná**. Schválené verejné repo [patus112/cleanquest](https://github.com/patus112/cleanquest) bolo vytvorené a pripojené ako miestny `origin`. Premenné `VITE_BASE_PATH=/cleanquest/` a `CLEANQUEST_DEPLOY_APPROVED=false` boli uložené a overené. Repo je prázdne, miestny Git nemá commit a kód sa ešte nepushol. Používateľské údaje neboli prepísané; deštruktívne testy bežali iba v oddelených testovacích databázach.
+Hash odkazy, napr. `/cleanquest/#/tasks?tab=rooms`, fungujú aj na nasadenej stránke bez serverového presmerovania. **Aplikácia je publikovaná na HTTPS GitHub Pages** z commitu `0f3111f`. Schválené verejné repo [patus112/cleanquest](https://github.com/patus112/cleanquest) obsahuje kompletné zdroje a je pripojené ako miestny `origin`. Po prvom vydaní zostávajú `VITE_BASE_PATH=/cleanquest/` a `CLEANQUEST_DEPLOY_APPROVED=false`; ďalšie nasadenie vyžaduje schválenie. Používateľské údaje neboli prepísané; deštruktívne testy bežali iba v oddelených testovacích databázach.
 
-Zostáva: schváliť push/publikovanie → overiť prihlásenie účtom s právom zápisu → commit/push na `main` → zapnúť Pages/GitHub Actions a schválený deploy → overiť HTTPS URL a [iPhone kontrolný zoznam](IPHONE_TESTING.md). Presné nastavenia a postup sú v [návode na vydanie](RELEASE.md).
+Zostáva manuálne overiť [iPhone kontrolný zoznam](IPHONE_TESTING.md): inštaláciu na plochu, natívne uloženie ZIP zálohy do Súborov, obnovu skutočného domova z lokálneho testovania, offline relaunch a prijatie budúcej aktualizácie. Ďalšia konfigurácia nie je potrebná na používanie prvého vydania. Postup pre ďalšie schválené vydanie je v [návode na vydanie](RELEASE.md).

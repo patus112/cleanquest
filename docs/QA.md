@@ -59,4 +59,10 @@ Use a production HTTPS build after deployment approval, or a trusted HTTPS local
 
 ## Deployment status
 
-Not deployed. No remote repository, push or publish action was performed. GitHub Pages still needs the intended repository, Pages set to GitHub Actions, the correct base-path variable, and explicit approval before enabling `CLEANQUEST_DEPLOY_APPROVED=true`.
+Published with explicit user approval on 2026-10-09 at https://patus112.github.io/cleanquest/ from commit `0f3111f`. Repository: `patus112/cleanquest`, Pages source: GitHub Actions, HTTPS enforced, `VITE_BASE_PATH=/cleanquest/`. The [successful remote workflow](https://github.com/patus112/cleanquest/actions/runs/37917411857) passed typecheck, lint, 159 tests, build/PWA validation, 24 mobile tests and deployment.
+
+The first remote attempt passed 22 mobile tests but failed the prepared-home assertion in both engines at its five-second polling deadline. Failure snapshots showed the successfully created dashboard. The assertion now allows 20 seconds for the larger transactional initialization while still checking page errors, configured records, DA, completion and reload persistence. All four targeted local scenarios and the complete subsequent remote suite passed.
+
+After publication, two additional isolated mobile Chromium/WebKit tests ran `e2e/release.spec.ts` against the real HTTPS address using a temporary ignored config: **2/2 passed**. They verified a saved completion and 10 DA, five hash routes with online/offline refresh, exact service-worker scope, manifest/icons and reopening with preserved data. Disposable Playwright contexts were separate from the user's browser profile. An independent HTTP check confirmed the page, seven linked HTML assets, manifest, icons and service worker returned 200 with the expected `/cleanquest/` paths. The application was also opened in the in-app browser without creating or replacing a household.
+
+`CLEANQUEST_DEPLOY_APPROVED=false` was restored after the first release. The live site remains published; another deployment requires approval. Physical iPhone installation, native backup sharing, local-home migration and storage acceptance remain on the manual checklist above.

@@ -21,7 +21,7 @@ The repository was empty at start. No existing files or remote projects were cha
 
 ## Current status
 
-The local MVP is prepared for the first approved mobile test release. Latest typecheck, lint, 159 Vitest tests, production build/asset validation and all 24 Chromium/WebKit journeys pass. The dependency audit reports zero vulnerabilities. Physical iPhone Safari/Home Screen sharing and storage acceptance remain manual; desktop WebKit does not verify an actual iPhone. See [release audit](RELEASE_READINESS.md), [deployment procedure](RELEASE.md) and [iPhone checklist](IPHONE_TESTING.md). Nothing was pushed or deployed.
+The first user-approved mobile test release is live at https://patus112.github.io/cleanquest/ from commit 0f3111f. The remote workflow passed typecheck, lint, 159 Vitest tests, production build/asset validation, all 24 Chromium/WebKit journeys and deployment. Two additional isolated tests passed against the actual HTTPS site, including offline reopening, DA and persistence. Physical iPhone Safari/Home Screen sharing and storage acceptance remain manual. See [release audit](RELEASE_READINESS.md), [deployment procedure](RELEASE.md) and [iPhone checklist](IPHONE_TESTING.md). The deployment gate was returned to false after the first release.
 
 ## Visual household milestone — 2026-10-09
 
@@ -72,8 +72,8 @@ Further refinements: measured floor adjacency/layout editing and physical iPhone
 - [x] Release report, exact repository settings, iPhone installation and storage/backup documentation
 - [x] Approved public repository patus112/cleanquest created and linked as local origin
 - [x] Repository variables: VITE_BASE_PATH=/cleanquest/, CLEANQUEST_DEPLOY_APPROVED=false
-- [ ] User approval for source push and publishing
-- [ ] Correct push authentication, first commit/push, Pages configuration and successful remote Actions run
+- [x] User approval for first source upload and publishing
+- [x] Correct-account source upload, local Git history, Pages configuration and successful remote Actions run
 - [ ] Physical iPhone installation, native backup sharing, offline relaunch and application update acceptance
 
 ## iPhone LAN onboarding fix — 2026-10-09
@@ -85,3 +85,15 @@ Further refinements: measured floor adjacency/layout editing and physical iPhone
 - [x] Regression coverage for HTTP household creation, first completion/DA and persistence in both engines
 - [x] Full checks: 159 unit/integration/UI tests, 24 browser journeys, typecheck, lint and production build
 - [ ] User retest on the physical iPhone at the same local address after refreshing
+
+## First approved GitHub Pages release — 2026-10-09
+
+- [x] Upload all 72 project files through the confirmed patus112 connection
+- [x] Verify local/remote file equality and preserve local working files
+- [x] Configure GitHub Actions as the Pages source and enforce HTTPS
+- [x] Correct the prepared-household CI polling deadline; four targeted local scenarios pass
+- [x] Full remote QA and deployment: 159 tests + 24 mobile journeys, both jobs successful
+- [x] Public HTTPS page, HTML assets, manifest, icons and service-worker verification
+- [x] Two additional isolated live-site Chromium/WebKit offline/DA/persistence tests pass
+- [x] Restore deployment approval gate to false after the approved release
+- [ ] Physical iPhone installation, native ZIP save/restore, offline relaunch and future update acceptance

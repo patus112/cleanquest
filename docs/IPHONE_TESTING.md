@@ -1,6 +1,6 @@
 # CleanQuest — inštalácia a prvý test na iPhone
 
-Použi schválenú **HTTPS** adresu vydania, napr. `https://USERNAME.github.io/cleanquest/`, v bežnom Safari. Adresa `127.0.0.1` na iPhone označuje samotný telefón, nie vývojový počítač. Cieľ prvého manuálneho testu je iOS 17 alebo novší; konkrétny iPhone zatiaľ nebol testovaný.
+Otvor schválené vydanie [CleanQuest](https://patus112.github.io/cleanquest/) v bežnom **Safari**. Adresa `127.0.0.1` na iPhone označuje samotný telefón, nie vývojový počítač. Cieľ prvého manuálneho testu je iOS 17 alebo novší; publikovaná verzia zatiaľ nebola overená na fyzickom iPhone.
 
 Pri skúšobnom otvorení cez miestnu Wi-Fi HTTP adresu funguje vytvorenie domova aj zápis dokončení. Taká adresa však neposkytuje bezpečný kontext potrebný na offline balík PWA a kontrolné súčty ZIP záloh. Inštaláciu, offline správanie a úplné ZIP zálohovanie testuj na HTTPS adrese; cez Wi-Fi HTTP používaj skúšobný domov. Oprava tlačidla nevyžaduje vymazanie údajov ani zmenu aktuálnej adresy — obnov tú istú stránku.
 
