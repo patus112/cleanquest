@@ -47,6 +47,9 @@ for (const prepared of [false, true]) {
           (await page
             .getByRole("heading", { name: "Ahoj, Patricia." })
             .isVisible()),
+        // A prepared home writes hundreds of tasks in one transaction. Allow
+        // slower CI runners to finish while still surfacing page errors early.
+        { timeout: 20_000 },
       )
       .toBe(true);
     expect(errors).toEqual([]);
