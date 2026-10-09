@@ -1,0 +1,8 @@
+node_modules/
+dist/
+playwright-report/
+test-results/
+.DS_Store
+*.local
+cleanquest-backup-*.zip
+cleanquest-backup-*.json
