@@ -1,0 +1,57 @@
+name: Build and deploy CleanQuest
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cleanquest-pages
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+        env:
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/cleanquest/' }}
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run e2e
+        env:
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/cleanquest/' }}
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanquest-browser-failures
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: check
+    # Enable this repository variable only after approving deployment.
+    if: vars.CLEANQUEST_DEPLOY_APPROVED == 'true'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/configure-pages@v5
+      - uses: actions/deploy-pages@v4
+        id: deployment
