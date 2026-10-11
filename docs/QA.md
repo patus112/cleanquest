@@ -1,5 +1,13 @@
 # Quality assurance
 
+## Latest local correction — 2026-10-11
+
+The reported floor/resident input bug was reproduced in a React regression test: deleting `1` immediately restored `1` because the change handler converted the empty value to zero and clamped it. Onboarding now keeps editable text drafts separate from the validated numeric household setup. Counts may stay empty while editing; Continue reports a Slovak error for missing, fractional or out-of-range counts. Area stays optional and accepts fractions. Count fields request a numeric mobile keyboard. Returning to the previous step preserves the draft.
+
+`npm run check` passed typecheck, lint, **170/170 Vitest tests**, production build and `/cleanquest/` asset/manifest/precache validation. `npm run e2e` passed **26/26 mobile Chromium/WebKit tests**. The new browser journey deletes the default counts using Backspace, checks blank-field validation, types 2 floors and 4 residents, saves a 120.5 m² home, and verifies the exact saved state after reloading. The complete suite also rechecks both custom/prepared HTTP onboarding paths, backup/photo restoration, DA/rewards and offline persistence. These browser tests use isolated databases and do not modify the user's household.
+
+The user approved publishing this correction on 2026-10-11. Deployment verification and a physical iPhone retest are pending; the previous live Pages version is `0f3111f`.
+
 ## Executed successfully
 
 - TypeScript strict checking: `npm run typecheck`.

@@ -2,6 +2,56 @@ import { test, expect } from "@playwright/test";
 import { read } from "./helpers";
 import { now } from "../tests/fixture";
 
+test("household counts can be cleared with Backspace, replaced and persisted", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(now);
+  await page.goto("./");
+  await page.getByRole("button", { name: "Pokračovať" }).click();
+  await page.getByLabel("Názov domácnosti").fill("Náš dvojpodlažný dom");
+  await page.getByLabel("Tvoje meno (voliteľné)").fill("Patricia");
+  await page.getByLabel("Typ", { exact: true }).selectOption("house");
+  for (const [label, replacement, message] of [
+    ["Počet podlaží", "2", "Zadaj počet podlaží"],
+    ["Počet obyvateľov", "4", "Zadaj počet obyvateľov"],
+  ]) {
+    const input = page.getByLabel(label);
+    await expect(input).toHaveAttribute("inputmode", "numeric");
+    await input.focus();
+    await input.press("End");
+    await input.press("Backspace");
+    await expect(input).toBeEmpty();
+    await page.getByRole("button", { name: "Pokračovať" }).click();
+    await expect(page.getByRole("alert")).toContainText(message);
+    await input.pressSequentially(replacement);
+    await expect(input).toHaveValue(replacement);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  }
+  await page.getByLabel("Rozloha v m² (voliteľné)").fill("120.5");
+  await page.getByRole("button", { name: "Pokračovať" }).click();
+  await page.getByRole("button", { name: "Späť" }).click();
+  await expect(page.getByLabel("Počet podlaží")).toHaveValue("2");
+  await expect(page.getByLabel("Počet obyvateľov")).toHaveValue("4");
+  await page.getByRole("button", { name: "Pokračovať" }).click();
+  await page.getByRole("button", { name: "Pokračovať" }).click();
+  await page.getByRole("button", { name: "Vytvoriť môj domov" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Ahoj, Patricia." }),
+  ).toBeVisible();
+  const saved = await read(page);
+  expect(saved.floors).toHaveLength(2);
+  expect(saved.households[0]).toMatchObject({
+    type: "house",
+    residentCount: 4,
+    totalArea: 120.5,
+  });
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Ahoj, Patricia." }),
+  ).toBeVisible();
+  expect(await read(page)).toEqual(saved);
+});
+
 for (const prepared of [false, true]) {
   test(`HTTP LAN onboarding creates and persists a ${prepared ? "prepared" : "custom"} household without secure-context UUID APIs`, async ({
     page,

@@ -29,6 +29,76 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe("Slovak user journeys", () => {
+  it("onboarding allows clearing and replacing household numbers and saves the entered values", async () => {
+    const save = vi.fn(async (state: State) => {
+      void state;
+    });
+    render(<Onboarding save={save} error="" busy={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pokračovať" }));
+    for (const label of ["Počet podlaží", "Počet obyvateľov"]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "inputmode",
+        "numeric",
+      );
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: "" },
+      });
+      expect(screen.getByLabelText(label)).toHaveValue(null);
+    }
+    fireEvent.change(screen.getByLabelText("Počet podlaží"), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByLabelText("Počet obyvateľov"), {
+      target: { value: "4" },
+    });
+    fireEvent.change(screen.getByLabelText("Rozloha v m² (voliteľné)"), {
+      target: { value: "120.5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Pokračovať" }));
+    fireEvent.click(screen.getByRole("button", { name: "Späť" }));
+    expect(screen.getByLabelText("Počet podlaží")).toHaveValue(2);
+    expect(screen.getByLabelText("Počet obyvateľov")).toHaveValue(4);
+    expect(screen.getByLabelText("Rozloha v m² (voliteľné)")).toHaveValue(
+      120.5,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pokračovať" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pokračovať" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vytvoriť môj domov" }));
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    expect(save.mock.calls[0][0].floors).toHaveLength(2);
+    expect(save.mock.calls[0][0].households[0]).toMatchObject({
+      residentCount: 4,
+      totalArea: 120.5,
+    });
+  });
+
+  it.each([
+    ["Počet podlaží", "", "Zadaj počet podlaží"],
+    ["Počet podlaží", "0", "Zadaj počet podlaží"],
+    ["Počet podlaží", "2.5", "Zadaj počet podlaží"],
+    ["Počet podlaží", "11", "Zadaj počet podlaží"],
+    ["Počet obyvateľov", "", "Zadaj počet obyvateľov"],
+    ["Počet obyvateľov", "0", "Zadaj počet obyvateľov"],
+    ["Počet obyvateľov", "4.5", "Zadaj počet obyvateľov"],
+    ["Počet obyvateľov", "101", "Zadaj počet obyvateľov"],
+    ["Rozloha v m² (voliteľné)", "-1", "Zadaj rozlohu"],
+    ["Rozloha v m² (voliteľné)", "100001", "Zadaj rozlohu"],
+  ])(
+    "onboarding prevents continuing with %s set to '%s'",
+    (label, value, message) => {
+      const save = vi.fn(async () => {});
+      render(<Onboarding save={save} error="" busy={false} />);
+      fireEvent.click(screen.getByRole("button", { name: "Pokračovať" }));
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+      fireEvent.click(screen.getByRole("button", { name: "Pokračovať" }));
+      expect(
+        screen.getByRole("heading", { name: "Ako voláme tvoj domov?" }),
+      ).toBeVisible();
+      expect(screen.getByRole("alert")).toHaveTextContent(message);
+      expect(save).not.toHaveBeenCalled();
+    },
+  );
+
   it("onboarding reports preparation failure and retries without losing chosen settings", async () => {
     const save = vi.fn(async (state: State) => {
       void state;

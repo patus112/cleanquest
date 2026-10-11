@@ -59,7 +59,43 @@ export default function Onboarding({
   const [inventory, setInventory] = useState<
     Partial<Record<RoomCategory, ObjectCategory[]>>
   >({});
+  // Keep the editable text separate from the validated numeric setup. Clearing
+  // a field must not immediately replace it with its minimum value on iOS.
+  const [numbers, setNumbers] = useState({
+    floors: "1",
+    residents: "1",
+    area: "",
+  });
+  const [numberError, setNumberError] = useState("");
+  const editNumber = (field: keyof typeof numbers, value: string) => {
+    setNumbers((current) => ({ ...current, [field]: value }));
+    setNumberError("");
+  };
   const update = (patch: Partial<Setup>) => setSetup({ ...setup, ...patch });
+  const nextStep = () => {
+    if (step === 1) {
+      const floors = Number(numbers.floors),
+        residents = Number(numbers.residents),
+        area = Number(numbers.area);
+      if (!Number.isInteger(floors) || floors < 1 || floors > 10) {
+        setNumberError("Zadaj počet podlaží ako celé číslo od 1 do 10.");
+        return;
+      }
+      if (!Number.isInteger(residents) || residents < 1 || residents > 100) {
+        setNumberError("Zadaj počet obyvateľov ako celé číslo od 1 do 100.");
+        return;
+      }
+      if (!Number.isFinite(area) || area < 0 || area > 100000) {
+        setNumberError(
+          "Zadaj rozlohu od 0 do 100 000 m² alebo ju nechaj prázdnu.",
+        );
+        return;
+      }
+      update({ floors, residents, area });
+    }
+    setNumberError("");
+    setStep(step + 1);
+  };
   const finish = async () => {
     if (creating || busy) return;
     setCreating(true);
@@ -149,9 +185,10 @@ export default function Onboarding({
               <button
                 className={`setup-option ${setup.template ? "selected" : ""}`}
                 aria-pressed={setup.template}
-                onClick={() =>
-                  update({ template: true, type: "house", floors: 2 })
-                }
+                onClick={() => {
+                  update({ template: true, type: "house", floors: 2 });
+                  editNumber("floors", "2");
+                }}
               >
                 <Sparkles />
                 <span>
@@ -200,39 +237,35 @@ export default function Onboarding({
                 <Field label="Počet podlaží">
                   <input
                     type="number"
+                    inputMode="numeric"
                     min="1"
                     max="10"
-                    value={setup.floors}
+                    step="1"
+                    value={numbers.floors}
                     disabled={setup.template}
-                    onChange={(e) =>
-                      update({
-                        floors: Math.max(
-                          1,
-                          Math.min(10, Number(e.target.value)),
-                        ),
-                      })
-                    }
+                    onChange={(e) => editNumber("floors", e.target.value)}
                   />
                 </Field>
                 <Field label="Rozloha v m² (voliteľné)">
                   <input
                     type="number"
+                    inputMode="decimal"
                     min="0"
-                    value={setup.area || ""}
-                    onChange={(e) =>
-                      update({ area: Math.max(0, Number(e.target.value)) })
-                    }
+                    max="100000"
+                    step="any"
+                    value={numbers.area}
+                    onChange={(e) => editNumber("area", e.target.value)}
                   />
                 </Field>
                 <Field label="Počet obyvateľov">
                   <input
                     type="number"
+                    inputMode="numeric"
                     min="1"
                     max="100"
-                    value={setup.residents}
-                    onChange={(e) =>
-                      update({ residents: Math.max(1, Number(e.target.value)) })
-                    }
+                    step="1"
+                    value={numbers.residents}
+                    onChange={(e) => editNumber("residents", e.target.value)}
                   />
                 </Field>
               </div>
@@ -442,9 +475,9 @@ export default function Onboarding({
               </small>
             </>
           )}
-          {(creationError || error) && (
+          {(numberError || creationError || error) && (
             <p className="error" role="alert">
-              {creationError || error}
+              {numberError || creationError || error}
             </p>
           )}
           <div className="onboard-actions">
@@ -452,7 +485,10 @@ export default function Onboarding({
               <Button
                 variant="ghost"
                 disabled={busy || creating}
-                onClick={() => setStep(step - 1)}
+                onClick={() => {
+                  setNumberError("");
+                  setStep(step - 1);
+                }}
               >
                 <ArrowLeft size={18} />
                 Späť
@@ -466,7 +502,7 @@ export default function Onboarding({
                 (!setup.template && !setup.rooms.length)
               }
               aria-busy={busy || creating}
-              onClick={() => (step < 3 ? setStep(step + 1) : void finish())}
+              onClick={() => (step < 3 ? nextStep() : void finish())}
             >
               {busy || creating
                 ? "Ukladám…"

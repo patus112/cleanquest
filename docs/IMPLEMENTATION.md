@@ -97,3 +97,14 @@ Further refinements: measured floor adjacency/layout editing and physical iPhone
 - [x] Two additional isolated live-site Chromium/WebKit offline/DA/persistence tests pass
 - [x] Restore deployment approval gate to false after the approved release
 - [ ] Physical iPhone installation, native ZIP save/restore, offline relaunch and future update acceptance
+
+## Editable onboarding numbers — 2026-10-11
+
+- [x] Reproduce the reported inability to delete the default floor/resident count in a failing React regression test
+- [x] Preserve empty numeric drafts while editing; validate floor/resident ranges only when continuing
+- [x] Numeric iPhone keyboard hints for counts, decimal keyboard hint and fractional area support
+- [x] Preserve edited values across Back/Continue and persist the chosen floors, residents and area
+- [x] Typecheck, lint, 170 Vitest tests, production build/PWA asset validation and all 26 mobile Chromium/WebKit journeys passed
+- [x] User approved publishing this correction on 2026-10-11
+- [ ] Publish and verify the approved correction on GitHub Pages
+- [ ] Retest deletion and replacement on the physical iPhone after the approved update
