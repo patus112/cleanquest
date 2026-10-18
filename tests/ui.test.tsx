@@ -262,12 +262,72 @@ describe("Slovak user journeys", () => {
         open={open}
         run={async () => true}
         navigate={() => {}}
+        setSessionBudget={() => {}}
       />,
     );
     expect(screen.getByText("LEN JEDNA VEC")).toBeVisible();
     expect(screen.getByText(/^0 DA ⚡$/)).toBeVisible();
+    expect(screen.getByText(/Dnes 0 z /)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: /Začať malý krok/ }));
     expect(open).toHaveBeenCalledWith({ kind: "focus" });
+  });
+  it("completes today's offered task in one tap", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const s = fixture();
+    const run = vi.fn(
+      async (recipe: (state: State) => void, message?: string) => {
+        recipe(s);
+        void message;
+        return true;
+      },
+    );
+    render(
+      <Dashboard
+        s={s}
+        open={vi.fn()}
+        run={run}
+        navigate={vi.fn()}
+        sessionBudget={10}
+        setSessionBudget={() => {}}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Hotovo" }));
+    });
+    expect(s.completions).toHaveLength(1);
+    expect(s.completions[0]).toMatchObject({ type: "required", xp: 10 });
+    expect(run.mock.calls[0][1]).toMatch(/dnes 1 z/);
+  });
+  it("postpones today's offered task until tomorrow", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const s = fixture();
+    const run = vi.fn(async (recipe: (state: State) => void) => {
+      recipe(s);
+      return true;
+    });
+    render(
+      <Dashboard
+        s={s}
+        open={vi.fn()}
+        run={run}
+        navigate={vi.fn()}
+        sessionBudget={10}
+        setSessionBudget={() => {}}
+      />,
+    );
+    const title = screen.getByRole("heading", { level: 2, name: /polic/ });
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Odložiť na zajtra" }),
+      );
+    });
+    const moved = s.dailyPlans
+      .flatMap((p) => p.occurrences)
+      .find((o) => o.title === title.textContent);
+    expect(moved?.deferredTo).toBe("2026-10-06");
+    expect(s.completions).toHaveLength(0);
   });
   it("room editor stores mixed flooring, dimensions, windows and configured textiles", async () => {
     const s = fixture(),

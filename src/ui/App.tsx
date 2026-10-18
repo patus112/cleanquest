@@ -520,23 +520,11 @@ export default function App() {
             </button>
           )}
           {page === "home" && (
-            <>
-              <div className="session-selector">
-                <span>Dnešný krátky blok</span>
-                <select
-                  aria-label="Dnešný časový blok"
-                  value={sessionBudget}
-                  onChange={(e) => setSessionBudget(Number(e.target.value))}
-                >
-                  {[5, 10, 15, 20, 30].map((n) => (
-                    <option value={n} key={n}>
-                      {n} min
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Dashboard {...props} navigate={navigate} />
-            </>
+            <Dashboard
+              {...props}
+              navigate={navigate}
+              setSessionBudget={setSessionBudget}
+            />
           )}
           {page === "tasks" && <Tasks {...props} />}
           {page === "rewards" && <Rewards {...props} />}
