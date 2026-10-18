@@ -337,17 +337,25 @@ export class LocalRepository implements Repository {
   }
   private async diffTable(table: TableName, before: Row[], after: Row[]) {
     if (!before.length && !after.length) return;
-    const previousJson = new Map(
-      before.map((row) => [row.id, canonicalJson(row)]),
-    );
     const previousRows = new Map(before.map((row) => [row.id, row]));
     const seen = new Set<string>();
     const puts: Row[] = [];
     for (const row of after) {
       seen.add(row.id);
-      if (previousJson.get(row.id) !== canonicalJson(row)) puts.push(row);
+      const prior = previousRows.get(row.id);
+      if (!prior) {
+        puts.push(row);
+        continue;
+      }
+      // Stored rows keep the key order we wrote. Canonicalize only when that
+      // order differs, so a large unchanged household is not sorted row by row.
+      if (
+        JSON.stringify(prior) !== JSON.stringify(row) &&
+        canonicalJson(prior) !== canonicalJson(row)
+      )
+        puts.push(row);
     }
-    const removed = [...previousJson.keys()].filter((id) => !seen.has(id));
+    const removed = [...previousRows.keys()].filter((id) => !seen.has(id));
     const unique = UNIQUE_FIELD[table];
     const rekey = unique
       ? puts
