@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   Clock,
@@ -37,6 +37,10 @@ import {
   RoomIcon,
   ObjectIcon,
 } from "./RoomVisual";
+const tasksTabFromHash = () => {
+  const tab = new URLSearchParams(location.hash.split("?")[1] || "").get("tab");
+  return tab === "rooms" || tab === "laundry" ? tab : "today";
+};
 const tabs = [
   ["today", "Dnes"],
   ["rooms", "Miestnosti"],
@@ -46,17 +50,20 @@ const tabs = [
   ["history", "História"],
 ];
 export default function Tasks({ s, run, open }: ScreenProps) {
-  const [tab, setTab] = useState(
-      new URLSearchParams(location.hash.split("?")[1]).get("tab") === "rooms"
-        ? "rooms"
-        : "today",
-    ),
+  const [tab, setTab] = useState(tasksTabFromHash),
     [roomId, setRoomId] = useState(""),
     [search, setSearch] = useState(""),
     [cycle, setCycle] = useState(60),
     day = dayOf(s),
     ids = completedIds(s),
     selected = s.rooms.find((r) => r.id === roomId);
+  useEffect(() => {
+    const sync = () => {
+      if (location.hash.startsWith("#/tasks")) setTab(tasksTabFromHash());
+    };
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
   const list = s.tasks.filter(
     (t) =>
       (!roomId || t.roomId === roomId) &&
@@ -697,7 +704,8 @@ export default function Tasks({ s, run, open }: ScreenProps) {
                 onChange={(e) => setCycle(Number(e.target.value))}
               />{" "}
               min. Po skutočnom spustení vznikne jedna nadväzujúca úloha.
-              Upozornenia fungujú pri otvorenej aplikácii.
+              Pripomenutie sa ukáže, keď je aplikácia otvorená alebo sa k nej
+              vrátiš, a dá sa na dnešok skryť.
             </div>
           )}
           {taskList(list)}

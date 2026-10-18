@@ -38,6 +38,39 @@ export default function Profile({
         title="Tvoj rytmus, tvoje pravidlá."
         text="Všetko si môžeš upraviť. Aj tempo."
       />
+      <section className="card spaced" id="ios-reminder">
+        <h2>Denné pripomenutie na iPhone</h2>
+        <p>
+          CleanQuest neposiela upozornenia a nemá server. Pokojné pripomenutie
+          sa ukáže, keď aplikáciu otvoríš alebo sa k nej vrátiš. Denný štuch si
+          nastavíš v aplikácii Skratky. Názvy ovládania sa líšia podľa verzie
+          iOS.
+        </p>
+        <ol className="reminder-steps">
+          <li>
+            Vytvor skratku, ktorá otvorí adresu{" "}
+            <a href="https://patus112.github.io/cleanquest/">
+              https://patus112.github.io/cleanquest/
+            </a>
+            . Ak máš CleanQuest na ploche a Skratky ponúkajú otvorenie tejto
+            aplikácie, môžeš použiť túto voľbu.
+          </li>
+          <li>
+            Pri úprave skratky pridaj automatizáciu a vyber spúšťač Time of Day.
+            Nastav čas a opakovanie, napríklad každý deň.
+          </li>
+          <li>
+            Aktuálny návod Apple pri behu bez pýtania odkazuje na súkromie
+            skratky a voľbu Allow Running When Locked. Staršie iOS ukazuje Ask
+            Before Running. Ak voľbu nevidíš, nechaj potvrdenie zapnuté. Tento
+            postup nesľubuje otvorenie na zamknutom telefóne.
+          </li>
+        </ol>
+        <p>
+          <strong>Dnes nie</strong> skryje pripomenutie do ďalšieho dňa.
+          Zatvorená aplikácia sama nič neohlási.
+        </p>
+      </section>
       <section className="card household-summary">
         <div className="icon-tile">
           <Home />

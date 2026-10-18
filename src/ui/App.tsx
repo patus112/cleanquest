@@ -30,11 +30,8 @@ import Rewards from "./Rewards";
 import Ideas from "./Ideas";
 import Profile from "./Profile";
 import Forms from "./Forms";
-import {
-  defaultSafety,
-  backupReminderDue,
-  type LocalSafety,
-} from "../domain/localSafety";
+import { defaultSafety, type LocalSafety } from "../domain/localSafety";
+import DailyReminder from "./DailyReminder";
 import {
   storageStatus,
   storageConstrained,
@@ -346,13 +343,6 @@ export default function App() {
     );
   const level = levelFor(totalXp(s)),
     props = { s, run, open: setModal, sessionBudget };
-  const laundry = s.tasks.filter(
-    (t) =>
-      t.enabled &&
-      t.eventAt &&
-      Date.parse(t.eventAt) <= Date.now() &&
-      t.nextDue <= dayOf(s),
-  );
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -455,48 +445,23 @@ export default function App() {
               </Button>
             </div>
           )}
-          {!modal && page === "home" && backupReminderDue(safety) && (
-            <div className="notice backup-reminder" role="status">
-              <span>Údaje sa zmenili. Je vhodný čas uložiť si zálohu.</span>
-              <Button
-                variant="secondary compact"
-                onClick={() => navigate("profile?section=backup")}
-              >
-                Zálohovať
-              </Button>
-              <Button
-                variant="ghost compact"
-                onClick={() =>
-                  void repo
-                    .updateSafety((meta) => {
-                      meta.snoozedUntil = new Date(
-                        Date.now() + 7 * 86400000,
-                      ).toISOString();
-                    })
-                    .then(refreshSafety)
-                    .catch((err) => setError(storageError(err)))
-                }
-              >
-                O týždeň
-              </Button>
-              <Button
-                variant="icon ghost"
-                aria-label="Zavrieť pripomienku zálohy"
-                onClick={() =>
-                  void repo
-                    .updateSafety((meta) => {
-                      meta.snoozedUntil = new Date(
-                        Date.now() + 86400000,
-                      ).toISOString();
-                    })
-                    .then(refreshSafety)
-                    .catch((err) => setError(storageError(err)))
-                }
-              >
-                <X size={16} />
-              </Button>
-            </div>
-          )}
+          <DailyReminder
+            s={s}
+            safety={safety}
+            page={page}
+            hidden={!!modal}
+            onBackup={() => navigate("profile?section=backup")}
+            onSnoozeWeek={() =>
+              void repo
+                .updateSafety((meta) => {
+                  meta.snoozedUntil = new Date(
+                    Date.now() + 7 * 86400000,
+                  ).toISOString();
+                })
+                .then(refreshSafety)
+                .catch((err) => setError(storageError(err)))
+            }
+          />
           {!modal && page !== "profile" && storageConstrained(storage) && (
             <div className="notice" role="status">
               <span>
@@ -509,15 +474,6 @@ export default function App() {
                 Zálohovanie
               </Button>
             </div>
-          )}
-          {laundry.length > 0 && page !== "tasks" && (
-            <button
-              className="laundry-notice"
-              onClick={() => navigate("tasks")}
-            >
-              Pranie má pripravený ďalší krok · {laundry.length}{" "}
-              {laundry.length === 1 ? "úloha" : "úlohy"}
-            </button>
           )}
           {page === "home" && (
             <>
