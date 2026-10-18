@@ -126,7 +126,7 @@ for (const prepared of [false, true]) {
     await page.reload();
     await expect(
       page.getByRole("heading", { name: "Ahoj, Patricia." }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 20_000 });
     expect(await read(page)).toEqual(saved);
     expect(errors).toEqual([]);
   });

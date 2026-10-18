@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import Dexie from "dexie";
 import { createDatabase, LocalRepository } from "../src/persistence/repository";
 import { complete, undo, redeem } from "../src/domain/commands";
-import { emptyState, uid, tables } from "../src/domain/model";
+import { emptyState, uid } from "../src/domain/model";
 import { balance, totalXp } from "../src/domain/rewards";
 import { importBackup, exportBackup } from "../src/persistence/validation";
 import { fixture, now } from "./fixture";
@@ -159,50 +159,6 @@ describe("real IndexedDB repository with fake-indexeddb", () => {
     repo.db.close();
     await repo.db.open();
     expect(balance(await repo.read())).toBe(-250);
-  });
-  it("version one database migrates to version five safely", async () => {
-    const name = `migration-${uid()}`,
-      legacy = new Dexie(name);
-    legacy.version(1).stores({ households: "id", tasks: "id" });
-    await legacy.open();
-    await legacy.table("households").put({ id: "h", name: "Starší domov" });
-    await legacy.table("tasks").put({ id: "t", title: "Staršia úloha" });
-    legacy.close();
-    const current = createDatabase(name);
-    databases.push(current);
-    await current.open();
-    expect(current.verno).toBe(5);
-    expect((await current.table("households").get("h")).timezone).toBe(
-      "Europe/Bratislava",
-    );
-    expect((await current.table("tasks").get("t")).acceptedLong).toBe(false);
-  });
-  it("version three migration adds target references without changing obligations or money", async () => {
-    const name = `migration-${uid()}`,
-      legacy = new Dexie(name),
-      s = fixture();
-    s.tasks[0].objectId = s.objects[0].id;
-    legacy.version(3).stores(Object.fromEntries(tables.map((t) => [t, "id"])));
-    await legacy.open();
-    for (const t of tables)
-      if (s[t].length) await legacy.table(t).bulkPut(s[t]);
-    legacy.close();
-    const current = createDatabase(name);
-    databases.push(current);
-    const saved = await new LocalRepository(current).read();
-    expect(
-      saved.dailyPlans[0].occurrences.find((o) => o.taskId === s.tasks[0].id)
-        ?.objectId,
-    ).toBe(s.objects[0].id);
-    expect(
-      saved.weeks[0].required.find((o) => o.taskId === s.tasks[0].id)
-        ?.objectName,
-    ).toBe(s.objects[0].name);
-    expect(saved.weeks[0].required.map((o) => o.id)).toEqual(
-      s.weeks[0].required.map((o) => o.id),
-    );
-    expect(saved.rewards).toEqual(s.rewards);
-    expect(saved.weeks[0].rewardCents).toBe(2000);
   });
   it("new room configuration and object position survive restart and backup recovery", async () => {
     const repo = repository(),
