@@ -10,6 +10,44 @@ import {
 } from "../domain/localSafety";
 import { storePhotos, hydratePhotos } from "./photos";
 export const DATABASE_VERSION = 5;
+export type UpgradeNotice = "reload" | "blocked";
+const upgradeListeners = new Set<(notice: UpgradeNotice) => void>();
+export function subscribeUpgrade(listener: (notice: UpgradeNotice) => void) {
+  upgradeListeners.add(listener);
+  return () => upgradeListeners.delete(listener);
+}
+function publishUpgrade(notice: UpgradeNotice) {
+  for (const listener of upgradeListeners) listener(notice);
+}
+const entitySchema = {
+  profiles: "id",
+  households: "id",
+  floors: "id,householdId,order",
+  rooms: "id,householdId,floorId,order",
+  objects: "id,householdId,roomId,category",
+  tasks: "id,householdId,roomId,objectId,nextDue,enabled,templateId",
+  completions: "id,householdId,taskId,occurrenceId,day,completedAt",
+  dailyPlans: "id,householdId,&date",
+  weeks: "id,householdId,&start",
+  bonuses: "id,householdId,&week",
+  megas: "id,householdId,&month",
+  problems: "id,householdId,roomId,status",
+  rewards: "id,householdId,sourceId,createdAt",
+  achievements: "id,householdId",
+  wishes: "id,householdId",
+  settings: "id",
+  templates: "id",
+};
+function storesFor(version: number) {
+  return {
+    ...entitySchema,
+    tasks:
+      version >= 2
+        ? entitySchema.tasks + ",parentCompletionId,eventAt"
+        : entitySchema.tasks,
+    ...(version >= 5 ? { photos: "id", safety: "id" } : {}),
+  };
+}
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (value && typeof value === "object")
@@ -45,107 +83,109 @@ export interface Repository {
   markExportPrepared(prepared: PreparedExport): Promise<LocalSafety>;
   confirmBackup(exportId: string): Promise<LocalSafety>;
 }
-export function createDatabase(name = "cleanquest"): Dexie {
+export function createDatabase(
+  name = "cleanquest",
+  version = DATABASE_VERSION,
+) {
+  if (!Number.isInteger(version) || version < 1 || version > DATABASE_VERSION)
+    throw new Error("Nepodporovaná verzia databázy.");
   const db = new Dexie(name);
-  const schema = {
-    profiles: "id",
-    households: "id",
-    floors: "id,householdId,order",
-    rooms: "id,householdId,floorId,order",
-    objects: "id,householdId,roomId,category",
-    tasks: "id,householdId,roomId,objectId,nextDue,enabled,templateId",
-    completions: "id,householdId,taskId,occurrenceId,day,completedAt",
-    dailyPlans: "id,householdId,&date",
-    weeks: "id,householdId,&start",
-    bonuses: "id,householdId,&week",
-    megas: "id,householdId,&month",
-    problems: "id,householdId,roomId,status",
-    rewards: "id,householdId,sourceId,createdAt",
-    achievements: "id,householdId",
-    wishes: "id,householdId",
-    settings: "id",
-    templates: "id",
-  };
-  db.version(1).stores(schema);
-  db.version(2)
-    .stores({ ...schema, tasks: schema.tasks + ",parentCompletionId,eventAt" })
-    .upgrade(async (tx) => {
-      await tx
-        .table("households")
-        .toCollection()
-        .modify((h) => {
-          h.timezone ||= "Europe/Bratislava";
-        });
-      await tx
-        .table("tasks")
-        .toCollection()
-        .modify((t) => {
-          t.acceptedLong ??= false;
-        });
-    });
-  db.version(3)
-    .stores({ ...schema, tasks: schema.tasks + ",parentCompletionId,eventAt" })
-    .upgrade(async (tx) => {
-      const settings = await tx.table("settings").get("settings");
-      await tx
-        .table("weeks")
-        .toCollection()
-        .modify((w) => {
-          w.restDays ??= settings?.restDays || [0];
-        });
-    });
-  db.version(4)
-    .stores({ ...schema, tasks: schema.tasks + ",parentCompletionId,eventAt" })
-    .upgrade(async (tx) => {
-      const tasks = new Map(
-        (await tx.table("tasks").toArray()).map((t) => [t.id, t]),
-      );
-      const objects = new Map(
-        (await tx.table("objects").toArray()).map((o) => [o.id, o]),
-      );
-      // Preserve existing plan identities and rewards; add only visual references.
-      for (const [table, field] of [
-        ["dailyPlans", "occurrences"],
-        ["weeks", "required"],
-      ])
+  db.version(1).stores(storesFor(1));
+  if (version >= 2)
+    db.version(2)
+      .stores(storesFor(2))
+      .upgrade(async (tx) => {
         await tx
-          .table(table)
+          .table("households")
           .toCollection()
-          .modify((plan) => {
-            for (const item of plan[field] || []) {
-              const object = objects.get(tasks.get(item.taskId)?.objectId);
-              if (object && object.roomId === item.roomId && !item.objectId) {
-                item.objectId = object.id;
-                item.objectName = object.name;
-              }
-            }
+          .modify((h) => {
+            h.timezone ||= "Europe/Bratislava";
           });
-    });
-  db.version(5)
-    .stores({
-      ...schema,
-      tasks: schema.tasks + ",parentCompletionId,eventAt",
-      photos: "id",
-      safety: "id",
-    })
-    .upgrade(async (tx) => {
-      const s = emptyState();
-      for (const table of tables)
-        (s[table] as unknown[]) = await tx.table(table).toArray();
-      const stored = storePhotos(s);
-      if (stored.photos.length) await tx.table("photos").bulkPut(stored.photos);
-      for (const table of ["rooms", "objects", "problems", "megas"] as const)
-        if (stored.state[table].length)
-          await tx.table(table).bulkPut(stored.state[table]);
-      const meta = defaultSafety();
-      if (s.households.length) {
-        changedSafety(
-          meta,
-          s.households[0].createdAt || new Date().toISOString(),
+        await tx
+          .table("tasks")
+          .toCollection()
+          .modify((t) => {
+            t.acceptedLong ??= false;
+          });
+      });
+  if (version >= 3)
+    db.version(3)
+      .stores(storesFor(3))
+      .upgrade(async (tx) => {
+        const settings = await tx.table("settings").get("settings");
+        await tx
+          .table("weeks")
+          .toCollection()
+          .modify((w) => {
+            w.restDays ??= settings?.restDays || [0];
+          });
+      });
+  if (version >= 4)
+    db.version(4)
+      .stores(storesFor(4))
+      .upgrade(async (tx) => {
+        const tasks = new Map(
+          (await tx.table("tasks").toArray()).map((t) => [t.id, t]),
         );
-      }
-      await tx.table("safety").put(meta);
-    });
+        const objects = new Map(
+          (await tx.table("objects").toArray()).map((o) => [o.id, o]),
+        );
+        // Preserve existing plan identities and rewards; add only visual references.
+        for (const [table, field] of [
+          ["dailyPlans", "occurrences"],
+          ["weeks", "required"],
+        ])
+          await tx
+            .table(table)
+            .toCollection()
+            .modify((plan) => {
+              for (const item of plan[field] || []) {
+                const object = objects.get(tasks.get(item.taskId)?.objectId);
+                if (object && object.roomId === item.roomId && !item.objectId) {
+                  item.objectId = object.id;
+                  item.objectName = object.name;
+                }
+              }
+            });
+      });
+  if (version >= 5)
+    db.version(5)
+      .stores(storesFor(5))
+      .upgrade(async (tx) => {
+        const s = emptyState();
+        for (const table of tables)
+          (s[table] as unknown[]) = await tx.table(table).toArray();
+        const stored = storePhotos(s);
+        if (stored.photos.length)
+          await tx.table("photos").bulkPut(stored.photos);
+        for (const table of ["rooms", "objects", "problems", "megas"] as const)
+          if (stored.state[table].length)
+            await tx.table(table).bulkPut(stored.state[table]);
+        const meta = defaultSafety();
+        if (s.households.length) {
+          changedSafety(
+            meta,
+            s.households[0].createdAt || new Date().toISOString(),
+          );
+        }
+        await tx.table("safety").put(meta);
+      });
+  // Dexie already closes on versionchange, but with auto-open left on, so the
+  // stale bundle can reopen an older schema and surface a version error.
+  // Returning false skips that default. A blocked upgrade only logs a warning
+  // and otherwise waits forever, so the UI can subscribe and explain it.
+  db.on("versionchange", (event) => {
+    try {
+      if (event.newVersion && event.newVersion > 0) publishUpgrade("reload");
+    } finally {
+      db.close({ disableAutoOpen: true });
+    }
+    return false;
+  });
+  db.on("blocked", (event) => {
+    if (!event.newVersion || event.newVersion < event.oldVersion) return;
+    publishUpgrade("blocked");
+  });
   return db;
 }
 export class LocalRepository implements Repository {

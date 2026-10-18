@@ -1418,6 +1418,10 @@ dialog::backdrop {
 .loading svg {
   color: var(--accent);
 }
+.upgrade-copy {
+  max-width: 28rem;
+  line-height: 1.5;
+}
 .onboarding {
   max-width: 1200px;
   min-height: 100dvh;

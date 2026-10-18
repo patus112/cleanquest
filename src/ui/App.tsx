@@ -14,7 +14,11 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { type State, emptyState } from "../domain/model";
-import { LocalRepository } from "../persistence/repository";
+import {
+  LocalRepository,
+  subscribeUpgrade,
+  type UpgradeNotice,
+} from "../persistence/repository";
 import { ensurePlans } from "../domain/scheduler";
 import { dayOf } from "../domain/commands";
 import { totalXp, levelFor } from "../domain/rewards";
@@ -54,6 +58,7 @@ const pageFromHash = () => {
 export default function App() {
   const [s, setState] = useState<State>(emptyState()),
     [loading, setLoading] = useState(true),
+    [upgrade, setUpgrade] = useState<UpgradeNotice | "">(""),
     [fatal, setFatal] = useState(""),
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
@@ -177,6 +182,11 @@ export default function App() {
   };
   useEffect(() => {
     let active = true;
+    const unsubscribe = subscribeUpgrade((notice) => {
+      if (active) setUpgrade(notice);
+    });
+    const settleUpgrade = () =>
+      setUpgrade((current) => (current === "reload" ? current : ""));
     void (async () => {
       try {
         await repo.initialize();
@@ -184,6 +194,7 @@ export default function App() {
           if (state.households.length) ensurePlans(state, dayOf(state));
         });
         if (active) {
+          settleUpgrade();
           setState(next);
           setSafety((await repo.readSnapshot()).safety);
           setSessionBudget(next.settings[0]?.dailyBudget || 15);
@@ -191,6 +202,7 @@ export default function App() {
         }
       } catch (err) {
         if (active) {
+          settleUpgrade();
           setFatal(
             storageError(
               err,
@@ -203,6 +215,7 @@ export default function App() {
     })();
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
   useEffect(() => {
@@ -291,6 +304,18 @@ export default function App() {
     if (s.households.length && !s.dailyPlans.some((p) => p.date === dayOf(s)))
       void run((state) => ensurePlans(state, dayOf(state)));
   }, [s, run]);
+  if (upgrade)
+    return (
+      <main className="loading">
+        <Leaf />
+        <p className="upgrade-copy" role="alert">
+          {upgrade === "blocked"
+            ? "Iné okno ešte používa staršiu verziu CleanQuest. Zavri ho alebo ho obnov. Táto stránka potom pokračuje sama a nič sa nemaže."
+            : "CleanQuest sa aktualizoval v inom okne. Obnov túto stránku, aby si mohol pokračovať. Tvoje úlohy, história aj fotografie zostávajú v tomto zariadení."}
+        </p>
+        <Button onClick={() => location.reload()}>Obnoviť stránku</Button>
+      </main>
+    );
   if (
     loading ||
     (s.households.length && !s.dailyPlans.some((p) => p.date === dayOf(s)))
