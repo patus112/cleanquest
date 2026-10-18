@@ -14,9 +14,9 @@ npm run dev
 Open `http://localhost:5173/cleanquest/`. The empty installation opens a four-step onboarding wizard. Choose a custom home and explicitly select furniture, or the editable two-floor family home. The 14 m² glazing note does not imply a panel count; add each panel or an explicit quantity yourself.
 
 ```sh
-npm run check                 # typecheck, lint, 170 tests, build + asset/PWA validation
+npm run check                 # typecheck, lint, 181 tests, build + asset/PWA validation
 npx playwright install chromium webkit
-npm run e2e                   # 26 mobile Chromium/WebKit tests, static test host :4174
+npm run e2e                   # 30 mobile Chromium/WebKit tests, static test host :4174
 npm run preview               # http://localhost:4173/cleanquest/
 ```
 
@@ -100,6 +100,6 @@ Reference: [Vite GitHub Pages deployment](https://vite.dev/guide/static-deploy.h
 - Special cleaning needs are stored and editable notes; the MVP does not infer allergies/material chemistry from free text. Select safe inventories, supplies and instructions yourself.
 - Monetary settings intentionally cannot exceed €20 + €5 per week. The wallet is a personal tracking ledger, with no payments or purchases.
 - A monthly project is created by selecting a captured problem. There is no paid AI or automatic technical repair advice.
-- Photos are stored as binary IndexedDB records and included separately in ZIP backups. There is no cloud media storage. Very large local histories may eventually need repository writes optimized to per-record updates; the current implementation transactionally rewrites this one household's records.
+- Photos are stored as binary IndexedDB records and included separately in ZIP backups. There is no cloud media storage. Commands still read the whole household inside one transaction, then put and delete only rows that changed, so unchanged history and photo blobs are not rewritten. Restoring a backup applies the whole household and checks it before commit. Large libraries still use device storage, memory while a command runs, and space in every ZIP.
 - Editing household dates/settings is supported, but the app does not protect against intentional developer-tools manipulation of local storage.
 - Floor names, additions and deletion are supported. Deleting a floor moves its rooms to the first remaining floor after confirmation. Removing a room asks for confirmation and preserves required snapshots and history.
