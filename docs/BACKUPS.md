@@ -54,4 +54,4 @@ A successful content-changing command advances the persisted revision atomically
 
 Automated integration tests use fake IndexedDB for migration/rollback/error cases. Production browser journeys use actual Chromium/WebKit IndexedDB and offline caching, a 15-room household with 393 tasks and four photo attachments, resizing, full ZIP checksum checks, rejection of a corrupted photo, optional export before replacement, reset/restore, recurrence/history/DA/wallet equality and repeated restoration.
 
-Desktop WebKit with an iPhone viewport is not a physical iPhone. Native Files/iCloud sharing, installed Safari PWA storage policies, force-close recovery, OS eviction and standalone safe areas remain physical-device checks in QA.md. No push or deployment has occurred.
+Desktop WebKit with an iPhone viewport is not a physical iPhone. Native Files/iCloud sharing, installed Safari PWA storage policies, force-close recovery, OS eviction and standalone safe areas remain physical-device checks in QA.md. The app is published at https://patus112.github.io/cleanquest/ behind the manual `CLEANQUEST_DEPLOY_APPROVED` gate. Publication does not copy a household between browsers.

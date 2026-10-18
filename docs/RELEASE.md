@@ -1,6 +1,6 @@
 # CleanQuest — prvé vydanie na GitHub Pages
 
-CleanQuest je dostupný na [https://patus112.github.io/cleanquest/](https://patus112.github.io/cleanquest/). Prvé testovacie vydanie bolo schválené používateľom a publikované 9. októbra 2026 z commitu `0f3111f`. [Build, všetky kontroly a deploy prešli](https://github.com/patus112/cleanquest/actions/runs/37917411857). **Ďalší push a publikovanie naďalej vyžadujú schválenie používateľa.**
+CleanQuest je dostupný na [https://patus112.github.io/cleanquest/](https://patus112.github.io/cleanquest/). Prvé testovacie vydanie bolo schválené používateľom a publikované 9. októbra 2026. [Build, všetky kontroly a deploy prešli](https://github.com/patus112/cleanquest/actions/runs/37917411857). **Ďalšie publikovanie naďalej vyžaduje schválenie používateľa** cez repository variable `CLEANQUEST_DEPLOY_APPROVED`.
 
 ## Už dokončené nastavenie — 9. októbra 2026
 

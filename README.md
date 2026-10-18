@@ -14,9 +14,9 @@ npm run dev
 Open `http://localhost:5173/cleanquest/`. The empty installation opens a four-step onboarding wizard. Choose a custom home and explicitly select furniture, or the editable two-floor family home. The 14 m² glazing note does not imply a panel count; add each panel or an explicit quantity yourself.
 
 ```sh
-npm run check                 # typecheck, lint, 159 tests, build + asset/PWA validation
+npm run check                 # typecheck, lint, 170 tests, build + asset/PWA validation
 npx playwright install chromium webkit
-npm run e2e                   # 24 mobile Chromium/WebKit journeys, static test host :4174
+npm run e2e                   # 26 mobile Chromium/WebKit tests, static test host :4174
 npm run preview               # http://localhost:4173/cleanquest/
 ```
 
@@ -24,7 +24,7 @@ PWA behavior is enabled in the production build. The development server does not
 
 For temporary Wi-Fi testing, use `npm run dev -- --host 0.0.0.0` and open the computer's LAN address with port 5173 and `/cleanquest/` on the phone. Household creation and task recording support HTTP LAN access through a cryptographically random UUID fallback. PWA service workers and ZIP checksum operations require a secure context (HTTPS or loopback); LAN HTTP testing does not verify those features. The iPhone guide describes the HTTPS release checks.
 
-First test release is live at [CleanQuest](https://patus112.github.io/cleanquest/), published with user approval on 2026-10-09 from commit `0f3111f`. [GitHub Actions build and deployment](https://github.com/patus112/cleanquest/actions/runs/37917411857) passed typecheck, lint, 159 tests, production validation and 24 mobile browser tests. Two additional isolated Chromium/WebKit tests passed against the actual HTTPS site, including offline reopening, DA and persistence. See the [release audit](docs/RELEASE_READINESS.md), [GitHub Pages procedure](docs/RELEASE.md) and [iPhone installation and backup precautions](docs/IPHONE_TESTING.md). The repository is connected as `origin`; `CLEANQUEST_DEPLOY_APPROVED=false` was restored after this release so future deployments require approval.
+CleanQuest is published at [https://patus112.github.io/cleanquest/](https://patus112.github.io/cleanquest/). The public repository is [patus112/cleanquest](https://github.com/patus112/cleanquest). The first test release was approved on 2026-10-09; further publication stays behind the manual `CLEANQUEST_DEPLOY_APPROVED` gate. See the [release audit](docs/RELEASE_READINESS.md), [GitHub Pages procedure](docs/RELEASE.md) and [iPhone installation and backup precautions](docs/IPHONE_TESTING.md).
 
 ## Included functionality
 
@@ -73,19 +73,19 @@ Reminders default to seven days when data changed since the last confirmed backu
 
 Data stays on this browser/origin. Another phone has its own home. Clearing browser data or losing a device requires a previously saved backup. There is no automatic cloud backup or cross-device synchronization. Native sharing and installed-PWA behavior still require manual checks on a physical iPhone.
 
-## GitHub Pages preparation — approval required
+## GitHub Pages — approval required
 
-No remote repository was created, no code was pushed and no deployment was performed.
+The public repository [patus112/cleanquest](https://github.com/patus112/cleanquest) is published at [https://patus112.github.io/cleanquest/](https://patus112.github.io/cleanquest/). Pages source is GitHub Actions.
 
-The workflow `.github/workflows/pages.yml` checks, tests and builds on pushes to `main` or a manual run. **Deployment is disabled until the repository variable `CLEANQUEST_DEPLOY_APPROVED=true` is explicitly configured after user approval.** A required reviewer on the `github-pages` environment is also recommended for ongoing approval control.
+The workflow `.github/workflows/pages.yml` checks, tests and builds on pushes to `main` or a manual run. **Deployment runs only when the repository variable `CLEANQUEST_DEPLOY_APPROVED=true` is set after approval.** A required reviewer on the `github-pages` environment is also recommended. Leaving the variable enabled also permits later automatic deployments on pushes to `main`; turn it off between separately approved releases, or keep environment protection.
 
-After approval:
+After approval of another release:
 
-1. Create/select the intended repository and push this source, including `package-lock.json`.
-2. Set Settings → Pages → Source to GitHub Actions.
-3. Keep `VITE_BASE_PATH=/cleanquest/` for `USERNAME.github.io/cleanquest/`. For a different repository set the repository variable `VITE_BASE_PATH` to `/<repository>/`.
+1. Push the approved source to this repository, including `package-lock.json`.
+2. Keep Settings → Pages → Source set to GitHub Actions.
+3. Keep `VITE_BASE_PATH=/cleanquest/` for `patus112.github.io/cleanquest/`. For a different repository set the repository variable `VITE_BASE_PATH` to `/<repository>/`.
 4. For a custom domain or a user/organization root site, set `VITE_BASE_PATH=/`, configure the domain and DNS yourself, and use HTTPS.
-5. Set the approval variable and run the workflow. It publishes only this repository's `dist/`. Leaving the variable enabled also permits subsequent automatic deployments on pushes to `main`; use environment approval or disable it between separately approved releases.
+5. Set the approval variable and run the workflow. It publishes only this repository's `dist/`.
 
 Follow [RELEASE.md](docs/RELEASE.md) for the exact settings, approval boundary, safe transfer of the existing local household, and post-deployment checks. Install from Safari using [IPHONE_TESTING.md](docs/IPHONE_TESTING.md).
 

@@ -6,13 +6,13 @@ The reported floor/resident input bug was reproduced in a React regression test:
 
 `npm run check` passed typecheck, lint, **170/170 Vitest tests**, production build and `/cleanquest/` asset/manifest/precache validation. `npm run e2e` passed **26/26 mobile Chromium/WebKit tests**. The new browser journey deletes the default counts using Backspace, checks blank-field validation, types 2 floors and 4 residents, saves a 120.5 m² home, and verifies the exact saved state after reloading. The complete suite also rechecks both custom/prepared HTTP onboarding paths, backup/photo restoration, DA/rewards and offline persistence. These browser tests use isolated databases and do not modify the user's household.
 
-The user approved publishing this correction on 2026-10-11. Deployment verification and a physical iPhone retest are pending; the previous live Pages version is `0f3111f`.
+The user approved publishing this correction on 2026-10-11. Deployment verification and a physical iPhone retest are pending. The site remains at https://patus112.github.io/cleanquest/ until a later approved deployment; another publish still requires the manual approval gate.
 
 ## Executed successfully
 
 - TypeScript strict checking: `npm run typecheck`.
 - ESLint: `npm run lint`.
-- Vitest: 159 tests across domain (95), detailed rooms and object movement (17), IndexedDB repository (14), binary backups/storage (21), React journeys (9), HTTP-compatible identifiers (3).
+- Vitest: 170 tests across domain (95), detailed rooms and object movement (17), IndexedDB repository (14), binary backups/storage (21), React UI (20), HTTP-compatible identifiers (3).
 - Vite production build, service worker and precache generation for `/cleanquest/`.
 - Additional root-path build for `/` in a separate temporary output directory, with manifest/start/scope/icon/asset assertions for both paths.
 - Playwright mobile Chromium and WebKit production journeys: onboarding and configured appliances; object-bound custom recurring task; focus completion and persistence; weekly reward/independent bonus; bounded extras; redemption/undo correction; problem to Mega project; export/reset/import; cached offline launch and local completion.
@@ -20,7 +20,7 @@ The user approved publishing this correction on 2026-10-11. Deployment verificat
 
 The visual-household milestone also tests mixed flooring, dimensions, window area without invented panels, textile generation, saved object positions, preserved target references, legacy database/backup compatibility, accessible room forms/maps, direct room navigation and a fully visible focus completion button. Dark and light maps/forms were checked with axe.
 
-Latest checks after the iPhone LAN fix, 2026-10-09: **24/24 Playwright tests passed** (twelve journeys per engine), including light-mode/mobile and desktop axe checks. **159/159** Vitest tests passed; typecheck, lint, production build and automated asset/PWA validation succeeded. There are no remaining failing automated checks. Physical iPhone checks below remain manual. See [release audit](RELEASE_READINESS.md).
+Checks after the iPhone LAN fix, 2026-10-09: **24/24 Playwright tests passed** (twelve journeys per engine), including light-mode/mobile and desktop axe checks. **159/159** Vitest tests passed that day; typecheck, lint, production build and automated asset/PWA validation succeeded. The current suite is the 170 Vitest and 26 Playwright totals above. Physical iPhone checks below remain manual. See [release audit](RELEASE_READINESS.md).
 
 The reported iPhone “Vytvoriť môj domov” failure was reproduced before the fix on a real insecure HTTP origin routed to the isolated test server. WebKit exposed `getRandomValues` but omitted `randomUUID`, producing an uncaught TypeError for both onboarding paths. Loopback is browser-trusted and the earlier tests had missed this distinction. UUID v4 generation now falls back to cryptographic random bytes; preparation and rejected-save errors are caught, announced in Slovak, and permit retry without losing settings. Four new browser tests check custom/prepared homes at 30 minutes/gentle/Sunday rest, first completion/DA and exact state persistence after refresh in both engines. Unit tests cover native/fallback identifiers, unavailable randomness, preparation errors, quota errors and retry. This verifies WebKit behavior under the relevant origin restrictions, not the user's physical iPhone itself. API constraints: [Web Crypto specification](https://w3c.github.io/webcrypto/#crypto-interface).
 
@@ -67,7 +67,7 @@ Use a production HTTPS build after deployment approval, or a trusted HTTPS local
 
 ## Deployment status
 
-Published with explicit user approval on 2026-10-09 at https://patus112.github.io/cleanquest/ from commit `0f3111f`. Repository: `patus112/cleanquest`, Pages source: GitHub Actions, HTTPS enforced, `VITE_BASE_PATH=/cleanquest/`. The [successful remote workflow](https://github.com/patus112/cleanquest/actions/runs/37917411857) passed typecheck, lint, 159 tests, build/PWA validation, 24 mobile tests and deployment.
+Published with explicit user approval on 2026-10-09 at https://patus112.github.io/cleanquest/. Repository: `patus112/cleanquest`, Pages source: GitHub Actions, HTTPS enforced, `VITE_BASE_PATH=/cleanquest/`. The [successful remote workflow](https://github.com/patus112/cleanquest/actions/runs/37917411857) for that first release passed typecheck, lint, 159 tests, build/PWA validation, 24 mobile tests and deployment.
 
 The first remote attempt passed 22 mobile tests but failed the prepared-home assertion in both engines at its five-second polling deadline. Failure snapshots showed the successfully created dashboard. The assertion now allows 20 seconds for the larger transactional initialization while still checking page errors, configured records, DA, completion and reload persistence. All four targeted local scenarios and the complete subsequent remote suite passed.
 
