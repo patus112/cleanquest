@@ -21,7 +21,7 @@ The repository was empty at start. No existing files or remote projects were cha
 
 ## Current status
 
-The first user-approved mobile test release is live at https://patus112.github.io/cleanquest/ from commit 0f3111f. The remote workflow passed typecheck, lint, 159 Vitest tests, production build/asset validation, all 24 Chromium/WebKit journeys and deployment. Two additional isolated tests passed against the actual HTTPS site, including offline reopening, DA and persistence. Physical iPhone Safari/Home Screen sharing and storage acceptance remain manual. See [release audit](RELEASE_READINESS.md), [deployment procedure](RELEASE.md) and [iPhone checklist](IPHONE_TESTING.md). The deployment gate was returned to false after the first release.
+CleanQuest is published at https://patus112.github.io/cleanquest/. The public repository is patus112/cleanquest. Further deployment stays behind the manual `CLEANQUEST_DEPLOY_APPROVED` gate, which was returned to false after the first approved release. The current automated suite is 170 Vitest tests and 26 mobile Chromium/WebKit tests. Physical iPhone Safari/Home Screen sharing and storage acceptance remain manual. See [release audit](RELEASE_READINESS.md), [deployment procedure](RELEASE.md) and [iPhone checklist](IPHONE_TESTING.md).
 
 ## Visual household milestone — 2026-10-09
 
