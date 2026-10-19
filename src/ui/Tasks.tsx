@@ -37,6 +37,7 @@ import {
   RoomIcon,
   ObjectIcon,
 } from "./RoomVisual";
+import { TidyKit, toneFor } from "./art";
 const tasksTabFromHash = () => {
   const tab = new URLSearchParams(location.hash.split("?")[1] || "").get("tab");
   return tab === "rooms" || tab === "laundry" ? tab : "today";
@@ -83,7 +84,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
       <div className="task-list">
         {tasks.map((t) => (
           <article
-            className={`task-row ${!t.enabled ? "paused" : ""}`}
+            className={`task-row ${!t.enabled ? "paused" : ""} ${toneFor(s, t.roomId)}`}
             key={t.id}
           >
             <span className="task-icon">
@@ -224,6 +225,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
         eyebrow="MALÉ ÚLOHY, VIDITEĽNÝ VÝSLEDOK"
         title="Tvoj domov v rytme."
         text="Všetko má svoje miesto. Aj čas na oddych."
+        art={<TidyKit />}
         action={
           <Button
             onClick={() => open({ kind: "task", roomId: roomId || undefined })}
@@ -275,7 +277,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
               ].map((o) => (
                 <article
                   key={o.id}
-                  className={`task-row ${ids.has(o.id) ? "completed" : ""}`}
+                  className={`task-row ${ids.has(o.id) ? "completed" : ""} ${toneFor(s, o.roomId)}`}
                 >
                   <Button
                     variant={`icon ${ids.has(o.id) ? "secondary" : "ghost"}`}
@@ -602,7 +604,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
               {[...s.rooms]
                 .sort((a, b) => a.order - b.order)
                 .map((r) => (
-                  <article className="card room-card" key={r.id}>
+                  <article className={`card room-card ${toneFor(s, r.id)}`} key={r.id}>
                     <button
                       className="room-open"
                       onClick={() => setRoomId(r.id)}

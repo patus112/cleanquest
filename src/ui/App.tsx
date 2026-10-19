@@ -22,6 +22,7 @@ import { ensurePlans } from "../domain/scheduler";
 import { dayOf } from "../domain/commands";
 import { totalXp, levelFor } from "../domain/rewards";
 import { Button, type ModalType } from "./components";
+import { ShineBurst, SunnyWindow } from "./art";
 import Onboarding from "./Onboarding";
 import Dashboard from "./Dashboard";
 import Tasks from "./Tasks";
@@ -277,13 +278,18 @@ export default function App() {
     if (!s.settings.length) return;
     const preference = s.settings[0].theme;
     const media = matchMedia("(prefers-color-scheme: dark)");
-    const apply = () =>
-      (document.documentElement.dataset.theme =
+    const apply = () => {
+      const theme =
         preference === "system"
           ? media.matches
             ? "dark"
             : "light"
-          : preference);
+          : preference;
+      document.documentElement.dataset.theme = theme;
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute("content", theme === "light" ? "#f4eee4" : "#241c16");
+    };
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
@@ -347,7 +353,7 @@ export default function App() {
   if (upgrade)
     return (
       <main className="loading">
-        <Leaf />
+        <SunnyWindow className="loading-art" />
         <p className="upgrade-copy" role="alert">
           {upgrade === "blocked"
             ? "Iné okno ešte používa staršiu verziu CleanQuest. Zavri ho alebo ho obnov. Táto stránka potom pokračuje sama a nič sa nemaže."
@@ -362,7 +368,7 @@ export default function App() {
   )
     return (
       <div className="loading">
-        <Leaf />
+        <SunnyWindow className="loading-art" />
         <p>Pripravujem tvoj domov…</p>
       </div>
     );
@@ -385,7 +391,11 @@ export default function App() {
       />
     );
   const level = levelFor(totalXp(s)),
-    props = { s, run, open: setModal, sessionBudget };
+    props = { s, run, open: setModal, sessionBudget },
+    celebrate =
+      toast.startsWith("Hotovo") ||
+      toast.startsWith("Malý krok je hotový") ||
+      toast.startsWith("Domov je o krok lepší");
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -565,9 +575,10 @@ export default function App() {
           }
         />
       )}
+      {celebrate && <ShineBurst key={toast} />}
       <div className="status-layer" aria-live="polite">
         {toast && (
-          <div className="toast">
+          <div className={`toast${celebrate ? " is-done" : ""}`}>
             <Check size={17} />
             {toast}
           </div>

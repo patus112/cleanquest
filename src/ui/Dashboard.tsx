@@ -25,6 +25,7 @@ import { totalXp, levelFor, streak } from "../domain/rewards";
 import { money } from "../domain/model";
 import { shiftDay, weekStart, weekday } from "../domain/calendar";
 import { TaskLocation } from "./RoomVisual";
+import { HomeGlow, PlantSprig, SunnyWindow, TidyKit, toneFor } from "./art";
 const shortDays = ["PO", "UT", "ST", "ŠT", "PI", "SO", "NE"];
 export default function Dashboard({
   s,
@@ -103,6 +104,7 @@ export default function Dashboard({
             : `Ahoj, ${s.profiles[0].displayName}.`
         }
         text="Malé kroky k pokojnejšiemu domovu."
+        art={<SunnyWindow />}
         action={
           <Button
             variant="secondary compact"
@@ -193,8 +195,11 @@ export default function Dashboard({
             );
           })}
         </div>
+        <div className="daily-scene" aria-hidden="true">
+          <HomeGlow />
+        </div>
       </section>
-      <section className="next-card">
+      <section className={`next-card ${task ? toneFor(s, task.roomId) : ""}`}>
         <div className="section-heading">
           <span className="eyebrow">LEN JEDNA VEC</span>
           <Sparkles size={20} />
@@ -244,7 +249,7 @@ export default function Dashboard({
         ) : (
           <>
             <div className="calm-icon">
-              <Leaf size={36} strokeWidth={1.2} />
+              <HomeGlow className="calm-art" />
             </div>
             <h2>Teraz je čas na pokoj.</h2>
             <p>
@@ -261,6 +266,7 @@ export default function Dashboard({
       </section>
       <div className="lower-grid">
         <section className="card reward-preview">
+          <PlantSprig className="card-mark" />
           <span className="eyebrow">TÝŽDENNÁ ODMENA</span>
           <div className="card-title-row">
             <h2>{money(week.rewardCents)}</h2>
@@ -281,6 +287,7 @@ export default function Dashboard({
           </LinkAction>
         </section>
         <section className="card quest-preview">
+          <TidyKit className="card-mark" />
           <span className="eyebrow">NIEČO NAVYŠE · DOBROVOĽNÉ</span>
           <h3>{s.bonuses.find((b) => b.week === week.start)?.title}</h3>
           <p>Tri malé kroky, keď máš chuť.</p>
@@ -301,6 +308,7 @@ export default function Dashboard({
           </LinkAction>
         </section>
         <section className="card mega-preview">
+          <SunnyWindow className="card-mark" />
           <span className="eyebrow">MEGA VÝZVA · TENTO MESIAC</span>
           <h3>
             {s.megas.find((m) => m.month === day.slice(0, 7))?.title ||

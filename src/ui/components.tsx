@@ -8,9 +8,10 @@ import {
   type ReactNode,
   type ReactElement,
 } from "react";
-import { X, Check, ArrowRight } from "lucide-react";
+import { X, ArrowRight } from "lucide-react";
 import type { State } from "../domain/model";
 import { optimizePhoto } from "../persistence/photos";
+import { TidyKit } from "./art";
 export interface ScreenProps {
   sessionBudget?: number;
   s: State;
@@ -134,16 +135,18 @@ export function Empty({
   title,
   text,
   action,
+  art,
 }: {
   title: string;
   text: string;
   action?: ReactNode;
+  art?: ReactNode;
 }) {
   return (
     <div className="empty">
-      <span className="empty-mark">
-        <Check size={26} />
-      </span>
+      <div className="empty-art" aria-hidden="true">
+        {art ?? <TidyKit />}
+      </div>
       <h3>{title}</h3>
       <p>{text}</p>
       {action}
@@ -155,19 +158,26 @@ export function PageHead({
   title,
   text,
   action,
+  art,
 }: {
   eyebrow: string;
   title: string;
   text?: string;
   action?: ReactNode;
+  art?: ReactNode;
 }) {
   return (
     <header className="page-head">
-      <div>
+      <div className="page-head-copy">
         <span className="eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
         {text && <p>{text}</p>}
       </div>
+      {art ? (
+        <div className="page-art" aria-hidden="true">
+          {art}
+        </div>
+      ) : null}
       {action}
     </header>
   );

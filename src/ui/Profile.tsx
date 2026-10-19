@@ -7,6 +7,7 @@ import type { LocalSafety } from "../domain/localSafety";
 import type { Repository } from "../persistence/repository";
 import type { ValidatedBackup } from "../persistence/backup";
 import type { StorageStatus } from "../persistence/storage";
+import { HomeGlow } from "./art";
 export default function Profile({
   s,
   run,
@@ -37,6 +38,7 @@ export default function Profile({
         eyebrow="DOMOV PODĽA TEBA"
         title="Tvoj rytmus, tvoje pravidlá."
         text="Všetko si môžeš upraviť. Aj tempo."
+        art={<HomeGlow />}
       />
       <section className="card spaced" id="ios-reminder">
         <h2>Denné pripomenutie na iPhone</h2>

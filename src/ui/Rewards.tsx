@@ -21,6 +21,7 @@ import { completedIds } from "../domain/scheduler";
 import { dayOf, replaceBonus } from "../domain/commands";
 import { weekStart } from "../domain/calendar";
 import { money } from "../domain/model";
+import { PlantSprig } from "./art";
 export default function Rewards({ s, run, open }: ScreenProps) {
   const day = dayOf(s),
     xp = totalXp(s),
@@ -36,6 +37,7 @@ export default function Rewards({ s, run, open }: ScreenProps) {
         eyebrow="POKROK, KTORÝ SA POČÍTA"
         title="Zaslúžené malé radosti."
         text="Odmeny za pravidelnosť. Priestor na niečo pre seba."
+        art={<PlantSprig />}
       />
       <div className="reward-grid">
         <section className="card level-card">
