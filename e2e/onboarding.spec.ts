@@ -118,7 +118,7 @@ for (const prepared of [false, true]) {
     await page.getByRole("button", { name: "Mám hotovo" }).click();
     await expect(
       page.getByRole("heading", { name: "Malý krok. Hotovo." }),
-    ).toBeVisible({ timeout: 20_000 });
+    ).toBeVisible();
     await page.getByRole("button", { name: "Na dnes si dám pauzu" }).click();
     const saved = await read(page);
     expect(saved.completions).toHaveLength(1);

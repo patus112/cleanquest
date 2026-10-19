@@ -32,47 +32,64 @@ export function pickTasks(
   excluded: string[] = [],
   previousRoom = "",
 ): Task[] {
-  const settings = s.settings[0];
-  const due = tasks.filter(
-    (t) =>
+  const settings = s.settings[0],
+    objectById = new Map(s.objects.map((object) => [object.id, object])),
+    roomById = new Map(s.rooms.map((room) => [room.id, room])),
+    skipped = new Set(excluded);
+  const due = tasks.filter((t) => {
+    const object = t.objectId ? objectById.get(t.objectId) : undefined,
+      room = roomById.get(t.roomId);
+    return (
       t.enabled &&
-      (!t.objectId ||
-        s.objects.some(
-          (o) => o.id === t.objectId && o.accessibility === "safe",
-        )) &&
+      (!t.objectId || object?.accessibility === "safe") &&
       t.nextDue <= day &&
       t.duration <= budget &&
       t.energy <= settings.energy &&
-      !excluded.includes(t.id) &&
-      s.rooms.some(
-        (r) =>
-          r.id === t.roomId &&
-          r.enabled &&
-          featurePresent(
-            r,
-            s.objects.find((o) => o.id === t.objectId)?.category || "",
-          ),
-      ) &&
-      (!t.eventAt || Date.parse(t.eventAt) <= Date.now()),
+      !skipped.has(t.id) &&
+      !!room &&
+      room.enabled &&
+      featurePresent(room, object?.category || "") &&
+      (!t.eventAt || Date.parse(t.eventAt) <= Date.now())
+    );
+  });
+  const baseScore = new Map<Task, number>();
+  const score = (t: Task) => {
+    const cached = baseScore.get(t);
+    if (cached !== undefined) return cached;
+    const value =
+      t.priority * 20 +
+      Math.min(14, Math.max(0, distance(day, t.nextDue))) * 2 +
+      (t.roomId !== previousRoom ? 9 : 0) +
+      (t.energy === 1 ? 2 : 0);
+    baseScore.set(t, value);
+    return value;
+  };
+  const ranked = due.map((task, index) => ({
+    task,
+    index,
+    base: score(task),
+  }));
+  // One id ordering, then numeric comparisons. String compare matches
+  // localeCompare for the UUID and ASCII ids this app stores.
+  ranked.sort((a, b) =>
+    a.task.id < b.task.id ? -1 : a.task.id > b.task.id ? 1 : a.index - b.index,
   );
-  const score = (t: Task) =>
-    t.priority * 20 +
-    Math.min(14, Math.max(0, distance(day, t.nextDue))) * 2 +
-    (t.roomId !== previousRoom ? 9 : 0) +
-    (t.energy === 1 ? 2 : 0);
-  due.sort((a, b) => score(b) - score(a) || a.id.localeCompare(b.id));
+  ranked.forEach((item, order) => (item.index = order));
   const selected: Task[] = [];
   let remaining = budget;
   const rooms = new Set<string>();
-  while (due.length && selected.length < 8) {
-    due.sort(
-      (a, b) =>
-        score(b) -
-          (rooms.has(b.roomId) ? 12 : 0) -
-          (score(a) - (rooms.has(a.roomId) ? 12 : 0)) ||
-        a.id.localeCompare(b.id),
-    );
-    const t = due.shift()!;
+  while (ranked.length && selected.length < 8) {
+    let best = 0;
+    for (let index = 1; index < ranked.length; index++) {
+      const left = ranked[index],
+        right = ranked[best],
+        delta =
+          left.base -
+          (rooms.has(left.task.roomId) ? 12 : 0) -
+          (right.base - (rooms.has(right.task.roomId) ? 12 : 0));
+      if (delta > 0 || (delta === 0 && left.index < right.index)) best = index;
+    }
+    const [{ task: t }] = ranked.splice(best, 1);
     if (t.duration > remaining) continue;
     selected.push(t);
     remaining -= t.duration;
