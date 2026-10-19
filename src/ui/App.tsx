@@ -278,18 +278,13 @@ export default function App() {
     if (!s.settings.length) return;
     const preference = s.settings[0].theme;
     const media = matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => {
-      const theme =
+    const apply = () =>
+      (document.documentElement.dataset.theme =
         preference === "system"
           ? media.matches
             ? "dark"
             : "light"
-          : preference;
-      document.documentElement.dataset.theme = theme;
-      document
-        .querySelector('meta[name="theme-color"]')
-        ?.setAttribute("content", theme === "light" ? "#f4eee4" : "#241c16");
-    };
+          : preference);
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
@@ -421,7 +416,7 @@ export default function App() {
               aria-current={page === id ? "page" : undefined}
               className={page === id ? "active" : ""}
             >
-              <Icon size={20} />
+              <Icon size={20} strokeWidth={1.75} />
               <span>{label}</span>
             </a>
           ))}
@@ -469,6 +464,26 @@ export default function App() {
           </div>
         </div>
         <main id="main-content" className="main-content">
+          <div className="status-layer" aria-live="polite">
+            {toast && (
+              <div className={`toast${celebrate ? " is-done" : ""}`}>
+                <Check size={17} />
+                {toast}
+              </div>
+            )}
+            {error && (
+              <div className="error-toast" role="alert">
+                <span>{error}</span>
+                <Button
+                  variant="icon ghost"
+                  aria-label="Zavrieť chybu"
+                  onClick={() => setError("")}
+                >
+                  <X size={17} />
+                </Button>
+              </div>
+            )}
+          </div>
           <UpdateNotice
             needRefresh={needRefresh}
             offlineReady={offlineReady}
@@ -538,7 +553,7 @@ export default function App() {
             aria-current={page === id ? "page" : undefined}
             className={page === id ? "active" : ""}
           >
-            <Icon size={21} />
+            <Icon size={21} strokeWidth={1.75} />
             <span>{label}</span>
           </a>
         ))}
@@ -576,26 +591,6 @@ export default function App() {
         />
       )}
       {celebrate && <ShineBurst key={toast} />}
-      <div className="status-layer" aria-live="polite">
-        {toast && (
-          <div className={`toast${celebrate ? " is-done" : ""}`}>
-            <Check size={17} />
-            {toast}
-          </div>
-        )}
-      </div>
-      {error && (
-        <div className="error-toast" role="alert">
-          <span>{error}</span>
-          <Button
-            variant="icon ghost"
-            aria-label="Zavrieť chybu"
-            onClick={() => setError("")}
-          >
-            <X size={17} />
-          </Button>
-        </div>
-      )}
       {busy && (
         <div className="saving" role="status">
           Ukladám…

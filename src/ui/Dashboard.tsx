@@ -4,8 +4,11 @@ import {
   Check,
   Clock,
   Coffee,
+  Gift,
+  Home,
   Leaf,
   Plus,
+  Trophy,
   RefreshCw,
   Sparkles,
   Zap,
@@ -17,6 +20,7 @@ import {
   Progress,
   PageHead,
   LinkAction,
+  SectionLabel,
   type ScreenProps,
 } from "./components";
 import { dayOf, complete, extraOptions, postpone } from "../domain/commands";
@@ -24,8 +28,8 @@ import { dailySession, completedIds, currentTasks } from "../domain/scheduler";
 import { totalXp, levelFor, streak } from "../domain/rewards";
 import { money } from "../domain/model";
 import { shiftDay, weekStart, weekday } from "../domain/calendar";
-import { TaskLocation } from "./RoomVisual";
-import { HomeGlow, PlantSprig, SunnyWindow, TidyKit, toneFor } from "./art";
+import { RoomIcon, TaskLocation } from "./RoomVisual";
+import { HomeGlow, PlantSprig, SunnyWindow, TidyKit } from "./art";
 const shortDays = ["PO", "UT", "ST", "ŠT", "PI", "SO", "NE"];
 export default function Dashboard({
   s,
@@ -104,6 +108,7 @@ export default function Dashboard({
             : `Ahoj, ${s.profiles[0].displayName}.`
         }
         text="Malé kroky k pokojnejšiemu domovu."
+        icon={Home}
         art={<SunnyWindow />}
         action={
           <Button
@@ -117,12 +122,13 @@ export default function Dashboard({
       />
       <section className="daily-card">
         <div className="section-heading">
-          <span className="eyebrow">TVOJ DNEŠNÝ RYTMUS</span>
+          <SectionLabel icon={Clock}>Tvoj dnešný rytmus</SectionLabel>
           <span className="tag">
-            <Clock size={13} />
+            <Clock size={13} strokeWidth={1.75} />
             {plan.timeBudget} min denne
           </span>
         </div>
+        <div className="daily-body">
         <div className="daily-content">
           <div className="ring">
             <svg viewBox="0 0 150 150" aria-hidden="true">
@@ -171,6 +177,10 @@ export default function Dashboard({
             </div>
           </div>
         </div>
+          <div className="daily-scene" aria-hidden="true">
+            <HomeGlow />
+          </div>
+        </div>
         <div className="week-strip">
           {shortDays.map((name, i) => {
             const d = shiftDay(week.start, i),
@@ -195,18 +205,23 @@ export default function Dashboard({
             );
           })}
         </div>
-        <div className="daily-scene" aria-hidden="true">
-          <HomeGlow />
-        </div>
       </section>
-      <section className={`next-card ${task ? toneFor(s, task.roomId) : ""}`}>
+      <section className="next-card">
         <div className="section-heading">
-          <span className="eyebrow">LEN JEDNA VEC</span>
-          <Sparkles size={20} />
+          <SectionLabel icon={Sparkles}>LEN JEDNA VEC</SectionLabel>
         </div>
         {task ? (
           <>
-            <span className="task-location">{task.roomName}</span>
+            <span className="room-chip">
+              <RoomIcon
+                category={
+                  s.rooms.find((room) => room.id === task.roomId)?.category ||
+                  "other"
+                }
+                size={15}
+              />
+              {task.roomName}
+            </span>
             <h2>{task.title}</h2>
             <div className="task-meta">
               <span>
@@ -267,7 +282,9 @@ export default function Dashboard({
       <div className="lower-grid">
         <section className="card reward-preview">
           <PlantSprig className="card-mark" />
-          <span className="eyebrow">TÝŽDENNÁ ODMENA</span>
+          <div className="card-kicker">
+            <SectionLabel icon={Gift}>Týždenná odmena</SectionLabel>
+          </div>
           <div className="card-title-row">
             <h2>{money(week.rewardCents)}</h2>
             <span className="tag">
@@ -288,7 +305,9 @@ export default function Dashboard({
         </section>
         <section className="card quest-preview">
           <TidyKit className="card-mark" />
-          <span className="eyebrow">NIEČO NAVYŠE · DOBROVOĽNÉ</span>
+          <div className="card-kicker">
+            <SectionLabel icon={Leaf}>Niečo navyše · dobrovoľné</SectionLabel>
+          </div>
           <h3>{s.bonuses.find((b) => b.week === week.start)?.title}</h3>
           <p>Tri malé kroky, keď máš chuť.</p>
           <div className="task-meta">
@@ -309,7 +328,9 @@ export default function Dashboard({
         </section>
         <section className="card mega-preview">
           <SunnyWindow className="card-mark" />
-          <span className="eyebrow">MEGA VÝZVA · TENTO MESIAC</span>
+          <div className="card-kicker">
+            <SectionLabel icon={Trophy}>Mega výzva · tento mesiac</SectionLabel>
+          </div>
           <h3>
             {s.megas.find((m) => m.month === day.slice(0, 7))?.title ||
               "Jedno miesto, ktoré môže fungovať lepšie."}
@@ -323,7 +344,7 @@ export default function Dashboard({
       {!currentTasks(s, day).length && !rest && (
         <section className="extra-card">
           <div>
-            <span className="eyebrow">EŠTE MÁM ENERGIU</span>
+            <SectionLabel icon={Zap}>Ešte mám energiu</SectionLabel>
             <h3>
               {extras.length >= 2
                 ? "Na dnes stačí. Pokračujeme zajtra."

@@ -1,10 +1,4 @@
 import type { CSSProperties } from "react";
-import type { State } from "../domain/model";
-
-export function toneFor(s: Pick<State, "rooms">, roomId?: string) {
-  const category = s.rooms.find((room) => room.id === roomId)?.category;
-  return category ? `tone-${category}` : "";
-}
 
 function Spark({ x, y, s = 5 }: { x: number; y: number; s?: number }) {
   const k = s * 0.34;
@@ -55,6 +49,18 @@ function Window({
         width={w}
         height={h}
         rx="5"
+      />
+      <path
+        className="art-ray"
+        d={`M${x + w * 0.66} ${y + h * 0.36} l${w * 0.22} ${-h * 0.08} M${x + w * 0.66} ${y + h * 0.36} l${w * 0.2} ${h * 0.12} M${x + w * 0.66} ${y + h * 0.36} l${-w * 0.05} ${-h * 0.22}`}
+      />
+      <rect
+        className="art-wood"
+        x={x - 6}
+        y={y + h - 2}
+        width={w + 12}
+        height="7"
+        rx="2"
       />
     </g>
   );
@@ -122,10 +128,13 @@ export function SunnyWindow({ className = "" }: { className?: string }) {
     >
       <rect className="art-wall" width="160" height="120" rx="16" />
       <rect className="art-floor" y="92" width="160" height="28" />
-      <Window x={28} y={16} w={72} h={62} />
-      <Plant x={124} y={78} s={0.85} />
-      <Spark x={18} y={22} s={4} />
-      <Spark x={112} y={28} s={3} />
+      <rect className="art-shelf" x="18" y="98" width="124" height="8" rx="3" />
+      <Window x={22} y={14} w={78} h={64} />
+      <Plant x={128} y={78} s={0.9} />
+      <Plant x={108} y={84} s={0.55} />
+      <Spark x={14} y={18} s={4.5} />
+      <Spark x={112} y={22} s={3} />
+      <Spark x={146} y={48} s={2.6} />
     </svg>
   );
 }
@@ -140,11 +149,15 @@ export function TidyKit({ className = "" }: { className?: string }) {
     >
       <rect className="art-wall" width="160" height="120" rx="16" />
       <rect className="art-floor" y="88" width="160" height="32" />
-      <Broom x={46} y={78} />
-      <Spray x={88} y={58} />
-      <Cloth x={78} y={92} />
-      <Spark x={24} y={28} s={4} />
-      <Spark x={130} y={36} s={3.2} />
+      <rect className="art-shelf" x="22" y="96" width="70" height="6" rx="2" />
+      <Broom x={40} y={80} />
+      <Spray x={78} y={52} />
+      <Spray x={102} y={60} />
+      <Cloth x={70} y={90} />
+      <Cloth x={108} y={96} />
+      <Spark x={18} y={24} s={4.5} />
+      <Spark x={132} y={30} s={3.4} />
+      <Spark x={58} y={36} s={2.4} />
     </svg>
   );
 }
@@ -159,9 +172,12 @@ export function PlantSprig({ className = "" }: { className?: string }) {
     >
       <rect className="art-wall" width="160" height="120" rx="16" />
       <rect className="art-floor" y="96" width="160" height="24" />
-      <Plant x={78} y={78} s={1.35} />
-      <Spark x={28} y={32} s={4} />
-      <Spark x={124} y={40} s={3} />
+      <Plant x={78} y={80} s={1.45} />
+      <Plant x={48} y={86} s={0.7} />
+      <Plant x={112} y={88} s={0.62} />
+      <Spark x={24} y={28} s={4.5} />
+      <Spark x={128} y={34} s={3.2} />
+      <Spark x={96} y={18} s={2.4} />
     </svg>
   );
 }
@@ -176,17 +192,22 @@ export function HomeGlow({ className = "" }: { className?: string }) {
     >
       <rect className="art-wall" width="520" height="150" rx="18" />
       <rect className="art-floor" y="112" width="520" height="38" />
-      <Window x={28} y={22} w={118} h={78} />
-      <Plant x={186} y={96} />
-      <rect className="art-wood" x="230" y="78" width="92" height="34" rx="4" />
-      <rect className="art-cloth" x="242" y="70" width="28" height="10" rx="2" />
-      <rect className="art-leaf" x="276" y="68" width="22" height="12" rx="2" />
-      <Broom x={390} y={100} />
-      <Spray x={430} y={78} />
-      <Cloth x={360} y={118} />
-      <Spark x={210} y={28} s={5} />
-      <Spark x={340} y={36} s={3.5} />
-      <Spark x={480} y={24} s={4} />
+      <rect className="art-shelf" x="210" y="118" width="120" height="10" rx="4" />
+      <Window x={24} y={16} w={132} h={82} />
+      <Plant x={186} y={98} s={1.05} />
+      <Plant x={214} y={104} s={0.62} />
+      <rect className="art-shelf" x="248" y="72" width="108" height="40" rx="5" />
+      <rect className="art-wood" x="258" y="80" width="14" height="24" rx="1" />
+      <rect className="art-leaf" x="276" y="84" width="12" height="20" rx="1" />
+      <rect className="art-cloth" x="294" y="78" width="22" height="10" rx="2" />
+      <rect className="art-wood" x="322" y="86" width="18" height="18" rx="2" />
+      <Broom x={400} y={102} />
+      <Spray x={444} y={74} />
+      <Cloth x={360} y={116} />
+      <Spark x={176} y={24} s={5} />
+      <Spark x={230} y={40} s={3} />
+      <Spark x={370} y={28} s={4} />
+      <Spark x={490} y={22} s={3.4} />
     </svg>
   );
 }

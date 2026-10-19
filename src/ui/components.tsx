@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type ReactElement,
 } from "react";
-import { X, ArrowRight } from "lucide-react";
+import { X, ArrowRight, type LucideIcon } from "lucide-react";
 import type { State } from "../domain/model";
 import { optimizePhoto } from "../persistence/photos";
 import { TidyKit } from "./art";
@@ -153,23 +153,48 @@ export function Empty({
     </div>
   );
 }
+export function SectionLabel({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <span className="section-label">
+      <span className="section-badge" aria-hidden="true">
+        <Icon size={16} strokeWidth={1.75} />
+      </span>
+      <span className="eyebrow">{children}</span>
+    </span>
+  );
+}
 export function PageHead({
   eyebrow,
   title,
   text,
   action,
   art,
+  icon: Icon,
 }: {
   eyebrow: string;
   title: string;
   text?: string;
   action?: ReactNode;
   art?: ReactNode;
+  icon?: LucideIcon;
 }) {
   return (
     <header className="page-head">
       <div className="page-head-copy">
-        <span className="eyebrow">{eyebrow}</span>
+        <span className="page-kicker">
+          {Icon ? (
+            <span className="section-badge" aria-hidden="true">
+              <Icon size={16} strokeWidth={1.75} />
+            </span>
+          ) : null}
+          <span className="eyebrow">{eyebrow}</span>
+        </span>
         <h1>{title}</h1>
         {text && <p>{text}</p>}
       </div>

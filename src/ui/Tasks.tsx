@@ -12,6 +12,7 @@ import {
   Trash2,
   Undo2,
   ChevronRight,
+  ListChecks,
   MapPin,
   Move,
   ArrowRightLeft,
@@ -37,7 +38,7 @@ import {
   RoomIcon,
   ObjectIcon,
 } from "./RoomVisual";
-import { TidyKit, toneFor } from "./art";
+import { TidyKit } from "./art";
 const tasksTabFromHash = () => {
   const tab = new URLSearchParams(location.hash.split("?")[1] || "").get("tab");
   return tab === "rooms" || tab === "laundry" ? tab : "today";
@@ -84,7 +85,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
       <div className="task-list">
         {tasks.map((t) => (
           <article
-            className={`task-row ${!t.enabled ? "paused" : ""} ${toneFor(s, t.roomId)}`}
+            className={`task-row ${!t.enabled ? "paused" : ""}`}
             key={t.id}
           >
             <span className="task-icon">
@@ -225,6 +226,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
         eyebrow="MALÉ ÚLOHY, VIDITEĽNÝ VÝSLEDOK"
         title="Tvoj domov v rytme."
         text="Všetko má svoje miesto. Aj čas na oddych."
+        icon={ListChecks}
         art={<TidyKit />}
         action={
           <Button
@@ -254,7 +256,12 @@ export default function Tasks({ s, run, open }: ScreenProps) {
       {tab === "today" && (
         <>
           <div className="section-heading">
-            <h2>Dnešný plán</h2>
+            <h2 className="with-badge">
+              <span className="section-badge" aria-hidden="true">
+                <ListChecks size={16} strokeWidth={1.75} />
+              </span>
+              Dnešný plán
+            </h2>
             <span className="muted">
               {s.dailyPlans.find((p) => p.date === day)?.timeBudget} min ·
               vlastným tempom
@@ -277,7 +284,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
               ].map((o) => (
                 <article
                   key={o.id}
-                  className={`task-row ${ids.has(o.id) ? "completed" : ""} ${toneFor(s, o.roomId)}`}
+                  className={`task-row ${ids.has(o.id) ? "completed" : ""}`}
                 >
                   <Button
                     variant={`icon ${ids.has(o.id) ? "secondary" : "ghost"}`}
@@ -588,7 +595,12 @@ export default function Tasks({ s, run, open }: ScreenProps) {
         ) : (
           <>
             <div className="section-heading">
-              <h2>Miestnosti</h2>
+              <h2 className="with-badge">
+                <span className="section-badge" aria-hidden="true">
+                  <ListChecks size={16} strokeWidth={1.75} />
+                </span>
+                Miestnosti
+              </h2>
               <Button
                 variant="secondary"
                 onClick={() => open({ kind: "room" })}
@@ -604,7 +616,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
               {[...s.rooms]
                 .sort((a, b) => a.order - b.order)
                 .map((r) => (
-                  <article className={`card room-card ${toneFor(s, r.id)}`} key={r.id}>
+                  <article className="card room-card" key={r.id}>
                     <button
                       className="room-open"
                       onClick={() => setRoomId(r.id)}
