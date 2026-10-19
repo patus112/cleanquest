@@ -21,7 +21,7 @@ import {
 import { ensurePlans } from "../domain/scheduler";
 import { dayOf } from "../domain/commands";
 import { totalXp, levelFor } from "../domain/rewards";
-import { Button, type ModalType } from "./components";
+import { Button, LogoMark, type ModalType } from "./components";
 import { ShineBurst, SunnyWindow } from "./art";
 import Onboarding from "./Onboarding";
 import Dashboard from "./Dashboard";
@@ -387,6 +387,18 @@ export default function App() {
     );
   const level = levelFor(totalXp(s)),
     props = { s, run, open: setModal, sessionBudget },
+    reminder = (
+      <DailyReminder
+        s={s}
+        safety={safety}
+        page={page}
+        hidden={!!modal}
+        hideBackup={needRefresh}
+        onBackup={() => navigate("profile?section=backup")}
+        onSnoozeWeek={() => snoozeReminder("week")}
+        onSnoozeBackup={() => snoozeReminder("dismiss")}
+      />
+    ),
     celebrate =
       toast.startsWith("Hotovo") ||
       toast.startsWith("Malý krok je hotový") ||
@@ -398,9 +410,7 @@ export default function App() {
       </a>
       <aside className="sidebar">
         <a className="brand" href="#/home">
-          <span>
-            <Leaf size={22} />
-          </span>
+          <LogoMark />
           CleanQuest<small>POKOJ ZAČÍNA DOMA</small>
         </a>
         <div className="sidebar-home">
@@ -441,7 +451,7 @@ export default function App() {
       <div className="workspace">
         <div className="topbar">
           <a className="mobile-brand" href="#/home">
-            <Leaf size={20} />
+            <LogoMark size={16} />
             CleanQuest
           </a>
           <span className="desktop-crumb">
@@ -497,16 +507,7 @@ export default function App() {
               setOfflineReady(false);
             }}
           />
-          <DailyReminder
-            s={s}
-            safety={safety}
-            page={page}
-            hidden={!!modal}
-            hideBackup={needRefresh}
-            onBackup={() => navigate("profile?section=backup")}
-            onSnoozeWeek={() => snoozeReminder("week")}
-            onSnoozeBackup={() => snoozeReminder("dismiss")}
-          />
+          {page !== "home" && reminder}
           {!modal && page !== "profile" && storageConstrained(storage) && (
             <div className="notice" role="status">
               <span>
@@ -525,6 +526,7 @@ export default function App() {
               {...props}
               navigate={navigate}
               setSessionBudget={setSessionBudget}
+              reminder={reminder}
             />
           )}
           {page === "tasks" && <Tasks {...props} />}

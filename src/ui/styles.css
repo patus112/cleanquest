@@ -2319,6 +2319,7 @@ fieldset.field legend {
     sans-serif;
   --gold: #d5bd8b;
   --gold-soft: #d5bd8b12;
+  --logo-leaf: #35694b;
   --scene-floor: #232a29;
   --scene-furniture: #353d39;
   --target-surface: #dc9a9424;
@@ -2326,6 +2327,7 @@ fieldset.field legend {
 :root[data-theme="light"] {
   --gold: #75591f;
   --gold-soft: #75591f0c;
+  --logo-leaf: #a5d6b2;
   --scene-floor: #eef0e9;
   --scene-furniture: #f9f8f2;
   --target-surface: #a6323216;
@@ -2344,6 +2346,7 @@ h1,
 }
 .brand > span {
   background: var(--gold);
+  color: var(--logo-leaf);
 }
 .sidebar nav a svg,
 .bottom-nav a svg,
@@ -3185,5 +3188,147 @@ h3.with-badge {
   .shine-burst span {
     left: 50%;
     top: 28%;
+  }
+}
+
+/* Green leaf on the gold badge. The other theme's accent clears the gold. */
+.logo-mark {
+  background: var(--gold);
+  color: var(--logo-leaf);
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+.mobile-brand .logo-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+.logo-mark svg,
+.mobile-brand .logo-mark svg,
+.onboard-brand .logo-mark svg {
+  color: var(--logo-leaf);
+}
+.logo-mark .logo-leaf {
+  fill: currentColor;
+}
+.logo-mark .logo-vein {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.week-strip {
+  min-width: 0;
+}
+.week-strip > div {
+  min-width: 0;
+}
+.day-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  letter-spacing: 0;
+}
+.day-task {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.day-task svg {
+  width: 12px;
+  height: 12px;
+}
+.day-task.done {
+  background: var(--accent);
+  color: #122119;
+  box-shadow: none;
+}
+.week-strip .today .day-task:not(.done) {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.day-more {
+  flex: 0 0 auto;
+  font-size: 9px;
+  line-height: 16px;
+  letter-spacing: 0;
+  color: inherit;
+}
+.home-screen > .daily-reminder {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 8px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.home-screen > .daily-reminder .daily-reminder-title {
+  margin: 0 0 2px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.3px;
+}
+.home-screen > .daily-reminder ul {
+  gap: 0;
+}
+@media (min-width: 801px) {
+  .main-content:has(.home-screen) {
+    padding-top: 28px;
+  }
+  .day-tasks {
+    max-width: 54px;
+  }
+  .day-task {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+  }
+  .day-task svg {
+    width: 14px;
+    height: 14px;
+  }
+  .day-more {
+    line-height: 22px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-content:has(.home-screen) {
+    padding-top: 32px;
+  }
+}
+@media (max-width: 600px) {
+  .home-screen > .daily-reminder {
+    order: 4;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .home-screen > .session-selector {
+    order: 5;
+  }
+  .home-screen > .lower-grid {
+    order: 6;
+  }
+  .home-screen > .extra-card {
+    order: 7;
+  }
+  .home-screen > .closing-note {
+    order: 8;
   }
 }

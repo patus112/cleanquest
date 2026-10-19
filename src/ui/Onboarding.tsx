@@ -2,12 +2,11 @@ import { useState } from "react";
 import {
   ArrowRight,
   ArrowLeft,
-  Leaf,
   Home,
   Check,
   Sparkles,
 } from "lucide-react";
-import { Button, Field } from "./components";
+import { Button, Field, LogoMark } from "./components";
 import { createHousehold, type Setup } from "../data/household";
 import {
   type State,
@@ -133,7 +132,7 @@ export default function Onboarding({
   return (
     <main className="onboarding">
       <div className="onboard-brand">
-        <Leaf size={23} />
+        <LogoMark />
         CleanQuest
       </div>
       <div className="onboard-layout">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
   Check,
@@ -28,9 +28,21 @@ import { dailySession, completedIds, currentTasks } from "../domain/scheduler";
 import { totalXp, levelFor, streak } from "../domain/rewards";
 import { money } from "../domain/model";
 import { shiftDay, weekStart, weekday } from "../domain/calendar";
-import { RoomIcon, TaskLocation } from "./RoomVisual";
+import {
+  rhythmLabel,
+  rhythmPreviewLimit,
+  weekRhythm,
+  type RhythmTask,
+} from "../domain/weekRhythm";
+import { ObjectIcon, RoomIcon, TaskLocation } from "./RoomVisual";
 import { HomeGlow, PlantSprig, SunnyWindow, TidyKit } from "./art";
-const shortDays = ["PO", "UT", "ST", "ŠT", "PI", "SO", "NE"];
+function RhythmGlyph({ task }: { task: RhythmTask }) {
+  return task.icon.kind === "object" ? (
+    <ObjectIcon category={task.icon.category} size={12} />
+  ) : (
+    <RoomIcon category={task.icon.category} size={12} />
+  );
+}
 export default function Dashboard({
   s,
   run,
@@ -38,9 +50,11 @@ export default function Dashboard({
   navigate,
   sessionBudget = 15,
   setSessionBudget,
+  reminder = null,
 }: ScreenProps & {
   navigate: (page: string) => void;
   setSessionBudget: (minutes: number) => void;
+  reminder?: ReactNode;
 }) {
   const day = dayOf(s),
     plan = s.dailyPlans.find((p) => p.date === day) || {
@@ -72,6 +86,7 @@ export default function Dashboard({
       currentTasks(s, day).length || rest ? [] : extraOptions(s, day),
     [extraIndex, setExtraIndex] = useState(0),
     extra = options[extraIndex % Math.max(1, options.length)];
+  const rhythm = useMemo(() => weekRhythm(s, day), [s, day]);
   const finish = () => {
     if (!task) return;
     void run(
@@ -182,25 +197,49 @@ export default function Dashboard({
           </div>
         </div>
         <div className="week-strip">
-          {shortDays.map((name, i) => {
-            const d = shiftDay(week.start, i),
-              p = s.dailyPlans.find((p) => p.date === d),
-              isRest = week.restDays.includes(weekday(d)),
-              complete =
-                !!p?.occurrences.length &&
-                p.occurrences.every((o) => doneIds.has(o.id));
+          {rhythm.map((preview) => {
+            const shown = preview.tasks.slice(0, rhythmPreviewLimit);
+            const extra = preview.tasks.length - shown.length;
+            const label = rhythmLabel(preview);
             return (
-              <div key={name} className={d === day ? "today" : ""}>
-                <span>{name}</span>
-                <i className={complete ? "finished" : isRest ? "rest" : ""}>
-                  {complete ? (
+              <div
+                key={preview.date}
+                className={preview.isToday ? "today" : ""}
+                role="group"
+                aria-label={label}
+                title={label}
+              >
+                <span aria-hidden="true">{preview.short}</span>
+                <i
+                  aria-hidden="true"
+                  className={
+                    preview.finished ? "finished" : preview.isRest ? "rest" : ""
+                  }
+                >
+                  {preview.finished ? (
                     <Check size={16} />
-                  ) : isRest ? (
+                  ) : preview.isRest ? (
                     <Coffee size={15} />
                   ) : (
                     <span />
                   )}
                 </i>
+                {preview.tasks.length > 0 && (
+                  <span className="day-tasks" aria-hidden="true">
+                    {shown.map((task) => (
+                      <span
+                        key={task.id}
+                        className={`day-task${task.done ? " done" : ""}`}
+                        title={
+                          task.done ? `${task.title} (hotové)` : task.title
+                        }
+                      >
+                        <RhythmGlyph task={task} />
+                      </span>
+                    ))}
+                    {extra > 0 && <span className="day-more">+{extra}</span>}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -279,6 +318,7 @@ export default function Dashboard({
           </>
         )}
       </section>
+      {reminder}
       <div className="lower-grid">
         <section className="card reward-preview">
           <PlantSprig className="card-mark" />
