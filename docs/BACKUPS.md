@@ -38,7 +38,7 @@ Supported import paths are dispatched explicitly by format/version. Legacy `clea
 1. Parse and verify the complete archive in memory, without changing the active database.
 2. Preview household, room/task/history counts, photo attachments, DA, balance and date.
 3. Offer an export of current data, then require **Potvrdiť nahradenie**.
-4. Validate the staged model and write all records/photos inside one Dexie read/write transaction.
+4. Validate the staged model and apply inserted, updated, and deleted records and photos inside one Dexie read/write transaction. Unchanged photo blobs are not rewritten.
 5. Read back and compare canonical record/attachment contents before commit.
 6. Publish the verified committed household or show an error. Exceptions, interrupted writes, quota failures and verification failures abort the transaction, retaining prior records, assets, DA, money and safety metadata.
 

@@ -8,7 +8,13 @@ import {
   type LocalSafety,
   type PreparedExport,
 } from "../domain/localSafety";
-import { storePhotos, hydratePhotos } from "./photos";
+import {
+  storePhotos,
+  hydratePhotos,
+  photoReferences,
+  decodePhoto,
+  type StoredPhoto,
+} from "./photos";
 export const DATABASE_VERSION = 5;
 export type UpgradeNotice = "reload" | "blocked";
 const upgradeListeners = new Set<(notice: UpgradeNotice) => void>();
@@ -69,6 +75,89 @@ export const canonicalState = (s: State) =>
       ),
     ),
   );
+const canonicalJson = (value: unknown) => JSON.stringify(canonicalValue(value));
+type TableName = (typeof tables)[number];
+type Row = { id: string };
+interface StoredSnapshot {
+  state: State;
+  photos: StoredPhoto[];
+}
+const UNIQUE_FIELD: Partial<Record<TableName, string>> = {
+  dailyPlans: "date",
+  weeks: "start",
+  bonuses: "week",
+  megas: "month",
+};
+function asBytes(value: unknown) {
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value))
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  return Uint8Array.from(value as ArrayLike<number>);
+}
+function sameBytes(a: Uint8Array, b: Uint8Array) {
+  if (a === b) return true;
+  if (a.byteLength !== b.byteLength) return false;
+  for (let i = 0; i < a.byteLength; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+function storedRow(table: TableName, row: Row): Row {
+  if (table === "rooms" || table === "objects") {
+    const record = row as Row & { photo?: string };
+    return record.photo
+      ? ({ ...record, photo: `local-photo:${table}:${record.id}:photo` } as Row)
+      : row;
+  }
+  if (table === "problems") {
+    const record = row as Row & { photos: string[] };
+    return {
+      ...record,
+      photos: record.photos.map((value, index) =>
+        value ? `local-photo:problems:${record.id}:${index}` : value,
+      ),
+    } as Row;
+  }
+  if (table === "megas") {
+    const record = row as Row & { before?: string; after?: string };
+    if (!record.before && !record.after) return row;
+    return {
+      ...record,
+      before: record.before
+        ? `local-photo:megas:${record.id}:before`
+        : record.before,
+      after: record.after
+        ? `local-photo:megas:${record.id}:after`
+        : record.after,
+    } as Row;
+  }
+  return row;
+}
+function nextPhotos(
+  state: State,
+  previous: StoredPhoto[],
+  previousUrls?: Map<string, string>,
+) {
+  const previousById = new Map(previous.map((photo) => [photo.id, photo]));
+  const photos: StoredPhoto[] = [];
+  for (const [id, value] of photoReferences(state)) {
+    const prior = previousById.get(id);
+    if (prior && previousUrls?.get(id) === value) {
+      photos.push(prior);
+      continue;
+    }
+    const decoded = decodePhoto(value);
+    if (
+      prior &&
+      prior.mime === decoded.mime &&
+      sameBytes(asBytes(prior.bytes), decoded.bytes)
+    ) {
+      photos.push(prior);
+      continue;
+    }
+    photos.push({ id, mime: decoded.mime, bytes: decoded.bytes });
+  }
+  return photos;
+}
 export interface Repository {
   read(): Promise<State>;
   transact(recipe: (state: State) => void): Promise<State>;
@@ -207,14 +296,21 @@ export class LocalRepository implements Repository {
     });
     return result;
   }
-  private async readInside(): Promise<State> {
-    const s = emptyState();
+  private async readStored(): Promise<StoredSnapshot> {
+    const state = emptyState();
+    const photosPromise = this.db.table("photos").toArray() as Promise<
+      StoredPhoto[]
+    >;
     await Promise.all(
-      tables.map(async (t) => {
-        (s[t] as unknown[]) = await this.db.table(t).toArray();
+      tables.map(async (table) => {
+        (state[table] as unknown[]) = await this.db.table(table).toArray();
       }),
     );
-    return hydratePhotos(s, await this.db.table("photos").toArray());
+    return { state, photos: await photosPromise };
+  }
+  private async readInside(): Promise<State> {
+    const stored = await this.readStored();
+    return hydratePhotos(stored.state, stored.photos);
   }
   private transactionTables() {
     return [...tables, "photos", "safety"].map((t) => this.db.table(t));
@@ -222,28 +318,93 @@ export class LocalRepository implements Repository {
   private async safetyInside(): Promise<LocalSafety> {
     return (await this.db.table("safety").get("local")) || defaultSafety();
   }
-  private async writeInside(s: State) {
-    const stored = storePhotos(s);
-    for (const t of tables) {
-      await this.db.table(t).clear();
-      if (stored.state[t].length)
-        await this.db.table(t).bulkPut(stored.state[t] as { id: string }[]);
+  /** Puts and deletes only rows whose stored form changed. One transaction. */
+  private async writeChanged(
+    previous: StoredSnapshot,
+    next: State,
+    previousPhotoUrls?: Map<string, string>,
+  ) {
+    for (const table of tables)
+      await this.diffTable(
+        table,
+        previous.state[table] as Row[],
+        (next[table] as Row[]).map((row) => storedRow(table, row)),
+      );
+    await this.diffPhotos(
+      previous.photos,
+      nextPhotos(next, previous.photos, previousPhotoUrls),
+    );
+  }
+  private async diffTable(table: TableName, before: Row[], after: Row[]) {
+    if (!before.length && !after.length) return;
+    const previousRows = new Map(before.map((row) => [row.id, row]));
+    const seen = new Set<string>();
+    const puts: Row[] = [];
+    for (const row of after) {
+      seen.add(row.id);
+      const prior = previousRows.get(row.id);
+      if (!prior) {
+        puts.push(row);
+        continue;
+      }
+      // Stored rows keep the key order we wrote. Canonicalize only when that
+      // order differs, so a large unchanged household is not sorted row by row.
+      if (
+        JSON.stringify(prior) !== JSON.stringify(row) &&
+        canonicalJson(prior) !== canonicalJson(row)
+      )
+        puts.push(row);
     }
-    await this.db.table("photos").clear();
-    if (stored.photos.length)
-      await this.db.table("photos").bulkPut(stored.photos);
+    const removed = [...previousRows.keys()].filter((id) => !seen.has(id));
+    const unique = UNIQUE_FIELD[table];
+    const rekey = unique
+      ? puts
+          .filter((row) => {
+            const prior = previousRows.get(row.id);
+            return (
+              prior !== undefined &&
+              (prior as Record<string, unknown>)[unique] !==
+                (row as Record<string, unknown>)[unique]
+            );
+          })
+          .map((row) => row.id)
+      : [];
+    const store = this.db.table(table);
+    // Delete moved unique keys before put so two rows can swap dates.
+    if (rekey.length) await store.bulkDelete(rekey);
+    if (removed.length) await store.bulkDelete(removed);
+    if (puts.length) await store.bulkPut(puts);
+  }
+  private async diffPhotos(before: StoredPhoto[], after: StoredPhoto[]) {
+    const previous = new Map(before.map((photo) => [photo.id, photo]));
+    const seen = new Set<string>();
+    const puts: StoredPhoto[] = [];
+    for (const photo of after) {
+      seen.add(photo.id);
+      // `nextPhotos` reuses the stored object when the blob is unchanged.
+      if (previous.get(photo.id) !== photo) puts.push(photo);
+    }
+    const removed = [...previous.keys()].filter((id) => !seen.has(id));
+    const store = this.db.table("photos");
+    if (removed.length) await store.bulkDelete(removed);
+    if (puts.length) await store.bulkPut(puts);
   }
   async transact(recipe: (state: State) => void): Promise<State> {
     let result = emptyState();
     await this.db.transaction("rw", this.transactionTables(), async () => {
-      const s = await this.readInside();
-      const before = canonicalState(s);
-      recipe(s);
-      result = validateState(s);
+      const stored = await this.readStored();
+      const current = hydratePhotos(
+        structuredClone(stored.state),
+        stored.photos,
+      );
+      const before = canonicalState(current);
+      const previousPhotoUrls = photoReferences(current);
+      recipe(current);
+      result = validateState(current);
       if (canonicalState(result) !== before) {
         const meta = await this.safetyInside();
         changedSafety(meta);
-        await this.writeInside(result);
+        await this.writeChanged(stored, result, previousPhotoUrls);
         await this.db.table("safety").put(meta);
       }
     });
@@ -259,7 +420,7 @@ export class LocalRepository implements Repository {
   ): Promise<State> {
     const valid = validateState(state);
     await this.db.transaction("rw", this.transactionTables(), async () => {
-      await this.writeInside(valid);
+      await this.writeChanged(await this.readStored(), valid);
       if (canonicalState(await this.readInside()) !== canonicalState(valid))
         throw new Error(
           "Kontrola obnovy zlyhala. Pôvodné údaje zostali zachované.",

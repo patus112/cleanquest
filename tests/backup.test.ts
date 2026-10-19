@@ -252,13 +252,16 @@ describe("binary persistence, safe restoration and revisions", () => {
     const hook = () => {
       throw new DOMException("full", "QuotaExceededError");
     };
+    // Changed rows are updated in place; inserts still go through creating.
     repo.db.table("rooms").hook("creating", hook);
+    repo.db.table("rooms").hook("updating", hook);
     await expect(
       repo.transact((s) => {
         s.rooms[0].name = "Zmena pri plnom úložisku";
       }),
     ).rejects.toMatchObject({ name: "QuotaExceededError" });
     repo.db.table("rooms").hook("creating").unsubscribe(hook);
+    repo.db.table("rooms").hook("updating").unsubscribe(hook);
     expect(await repo.readSnapshot()).toEqual(before);
     expect(balance((await repo.readSnapshot()).state)).toBe(1675);
   });
