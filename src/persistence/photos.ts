@@ -9,18 +9,42 @@ export const photoAttachmentCount = (state: State) =>
   state.objects.filter((o) => o.photo).length +
   state.problems.reduce((n, p) => n + p.photos.length, 0) +
   state.megas.reduce((n, m) => n + Number(!!m.before) + Number(!!m.after), 0);
+function visitPhotos(
+  state: State,
+  visit: (value: string, key: string, assign: (next: string) => void) => void,
+) {
+  for (const table of ["rooms", "objects"] as const)
+    for (const row of state[table])
+      if (row.photo)
+        visit(row.photo, `${table}:${row.id}:photo`, (next) => {
+          row.photo = next;
+        });
+  for (const row of state.problems)
+    row.photos.forEach((value, index) =>
+      visit(value, `problems:${row.id}:${index}`, (next) => {
+        row.photos[index] = next;
+      }),
+    );
+  for (const row of state.megas)
+    for (const field of ["before", "after"] as const)
+      if (row[field])
+        visit(row[field], `megas:${row.id}:${field}`, (next) => {
+          row[field] = next;
+        });
+}
 export function mapPhotos(
   state: State,
   map: (value: string, key: string) => string,
 ) {
-  for (const table of ["rooms", "objects"] as const)
-    for (const row of state[table])
-      if (row.photo) row.photo = map(row.photo, `${table}:${row.id}:photo`);
-  for (const row of state.problems)
-    row.photos = row.photos.map((p, i) => map(p, `problems:${row.id}:${i}`));
-  for (const row of state.megas)
-    for (const field of ["before", "after"] as const)
-      if (row[field]) row[field] = map(row[field]!, `megas:${row.id}:${field}`);
+  visitPhotos(state, (value, key, assign) => assign(map(value, key)));
+}
+/** Attachment id → current display URL, without copying or rewriting bytes. */
+export function photoReferences(state: State) {
+  const refs = new Map<string, string>();
+  visitPhotos(state, (value, key) => {
+    refs.set(key, value);
+  });
+  return refs;
 }
 export function decodePhoto(url: string): {
   mime: "image/png" | "image/jpeg" | "image/webp";

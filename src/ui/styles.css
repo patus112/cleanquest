@@ -2114,7 +2114,7 @@ dialog::backdrop {
     padding: 13px;
   }
   .notice .button {
-    min-height: 40px;
+    min-height: 44px;
   }
   .onboarding {
     padding: 25px 21px calc(20px + env(safe-area-inset-bottom));

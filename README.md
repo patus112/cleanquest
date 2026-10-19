@@ -14,9 +14,9 @@ npm run dev
 Open `http://localhost:5173/cleanquest/`. The empty installation opens a four-step onboarding wizard. Choose a custom home and explicitly select furniture, or the editable two-floor family home. The 14 m² glazing note does not imply a panel count; add each panel or an explicit quantity yourself.
 
 ```sh
-npm run check                 # typecheck, lint, 170 tests, build + asset/PWA validation
+npm run check                 # typecheck, lint, 181 tests, build + asset/PWA validation
 npx playwright install chromium webkit
-npm run e2e                   # 26 mobile Chromium/WebKit tests, static test host :4174
+npm run e2e                   # 30 mobile Chromium/WebKit tests, static test host :4174
 npm run preview               # http://localhost:4173/cleanquest/
 ```
 
@@ -69,7 +69,7 @@ Imports verify ZIP structure, format/schema versions, manifest/file SHA-256 chec
 
 Database version 5 moves existing raster data URLs to binary records. New photos are optimized to JPEG with a maximum 1,600-pixel long edge; input PNG/JPEG/WebP files may be up to 20 MB, with a 60-million-pixel safety bound. Backup limits are 40 MB compressed/expanded, 1,000 unique photos, 2 MB per photo, and 30 MB for the validated logical household including display photo URLs. Identical attachments share one ZIP asset while all room/object/problem/project references survive. See [backup format and recovery details](docs/BACKUPS.md).
 
-Reminders default to seven days when data changed since the last confirmed backup; choose 3, 7, 14, 30 days or none. Dismissal/postponement persists locally and never interrupts focus mode. Browser storage persistence is requested where supported; a grant is not assumed. Estimates include the origin's offline cache and data. Service worker updates clean application caches, never IndexedDB.
+Reminders default to seven days when data changed since the last confirmed backup; choose 3, 7, 14, 30 days or none. Closing a reminder snoozes for that interval, and **O týždeň** snoozes seven days. The reminder stays on Domov and never interrupts focus mode. If an update is waiting and data changed since the last confirmed backup, the app offers the same ZIP export first; **Aktualizovať aj tak** skips it. Browser storage persistence is requested where supported; a grant is not assumed. Estimates include the origin's offline cache and data. Service worker updates clean application caches, never IndexedDB.
 
 Data stays on this browser/origin. Another phone has its own home. Clearing browser data or losing a device requires a previously saved backup. There is no automatic cloud backup or cross-device synchronization. Native sharing and installed-PWA behavior still require manual checks on a physical iPhone.
 
@@ -100,6 +100,6 @@ Reference: [Vite GitHub Pages deployment](https://vite.dev/guide/static-deploy.h
 - Special cleaning needs are stored and editable notes; the MVP does not infer allergies/material chemistry from free text. Select safe inventories, supplies and instructions yourself.
 - Monetary settings intentionally cannot exceed €20 + €5 per week. The wallet is a personal tracking ledger, with no payments or purchases.
 - A monthly project is created by selecting a captured problem. There is no paid AI or automatic technical repair advice.
-- Photos are stored as binary IndexedDB records and included separately in ZIP backups. There is no cloud media storage. Very large local histories may eventually need repository writes optimized to per-record updates; the current implementation transactionally rewrites this one household's records.
+- Photos are stored as binary IndexedDB records and included separately in ZIP backups. There is no cloud media storage. Commands still read the whole household inside one transaction, then put and delete only rows that changed, so unchanged history and photo blobs are not rewritten. Restoring a backup applies the whole household and checks it before commit. Large libraries still use device storage, memory while a command runs, and space in every ZIP.
 - Editing household dates/settings is supported, but the app does not protect against intentional developer-tools manipulation of local storage.
 - Floor names, additions and deletion are supported. Deleting a floor moves its rooms to the first remaining floor after confirmation. Removing a room asks for confirmation and preserves required snapshots and history.

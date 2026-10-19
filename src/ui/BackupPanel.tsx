@@ -5,26 +5,21 @@ import { changedSafety, type LocalSafety } from "../domain/localSafety";
 import type { Repository } from "../persistence/repository";
 import {
   openBackup,
-  prepareBackup,
   type PreparedBackup,
   type ValidatedBackup,
 } from "../persistence/backup";
 import { storePhotos } from "../persistence/photos";
 import {
-  canShareBackup,
-  downloadBackup,
-  shareBackup,
   storageError,
   requestPersistentStorage,
   storageConstrained,
   type StorageStatus,
 } from "../persistence/storage";
+import { prepareCurrentBackup } from "./backupExport";
 import { Button, Dialog, Field } from "./components";
 import BackupPreview from "./BackupPreview";
-export const sizeLabel = (bytes: number) =>
-  bytes < 1000000
-    ? `${Math.max(1, Math.round(bytes / 1000))} kB`
-    : `${(bytes / 1000000).toLocaleString("sk-SK", { maximumFractionDigits: 1 })} MB`;
+import BackupReadyDialog, { sizeLabel } from "./BackupReadyDialog";
+export { sizeLabel };
 export default function BackupPanel({
   s,
   safety,
@@ -77,18 +72,18 @@ export default function BackupPanel({
     setMessage("");
     setWorking("prepare");
     try {
-      const snapshot = await repository.readSnapshot(),
-        value = await prepareBackup(snapshot.state, snapshot.safety);
-      setPrepared(value);
+      const result = await prepareCurrentBackup(repository);
+      setPrepared(result.prepared);
       setDelivered(false);
-      try {
-        await repository.markExportPrepared(value.export);
-        await refresh();
-      } catch (err) {
-        setError(
-          `Súbor je pripravený, ale história exportu sa neuložila. ${storageError(err)}`,
-        );
-      }
+      if (result.warning) setError(result.warning);
+      else
+        try {
+          await refresh();
+        } catch (err) {
+          setError(
+            `Súbor je pripravený, ale história exportu sa neuložila. ${storageError(err)}`,
+          );
+        }
     } catch (err) {
       setError(storageError(err, "Zálohu sa nepodarilo pripraviť."));
     } finally {
@@ -302,78 +297,29 @@ export default function BackupPanel({
         />
       )}
       {prepared && (
-        <Dialog title="Záloha je pripravená" onClose={closePrepared}>
-          <p>
-            <strong>{prepared.file.name}</strong>
-            <br />
-            {sizeLabel(prepared.file.size)} · Súbory fotografií:{" "}
-            {prepared.manifest.photoCount}
-          </p>
-          <p>
-            Súbor je pripravený. Ulož ho do Súborov alebo ho zdieľaj na miesto,
-            ktorému dôveruješ. Aplikácia nevie overiť, kam si ho uložila.
-          </p>
-          <div className="actions">
-            {canShareBackup(prepared.file) && (
-              <Button
-                onClick={() =>
-                  void act(async () => {
-                    const result = await shareBackup(prepared.file);
-                    if (result !== "cancelled") setDelivered(true);
-                  })
-                }
-              >
-                Zdieľať / uložiť súbor
-              </Button>
-            )}
-            <Button
-              variant={canShareBackup(prepared.file) ? "secondary" : ""}
-              onClick={() => {
-                downloadBackup(prepared.file);
-                setDelivered(true);
-              }}
-            >
-              Stiahnuť ZIP
-            </Button>
-          </div>
-          <div className="quiet-note spaced">
-            {delivered
-              ? "Stiahnutie alebo zdieľanie bolo spustené. Potvrď uloženie až keď vieš, že súbor máš bezpečne uložený."
-              : "Príprava zálohy ešte neznamená, že je bezpečne uložená."}
-          </div>
-          {safety.revision !== prepared.export.revision && (
-            <p>
-              Od prípravy zálohy sa údaje zmenili. Tento súbor obsahuje skorší
-              stav domácnosti.
-            </p>
-          )}
-          {error && (
-            <p role="alert" className="error">
-              {error}
-            </p>
-          )}
-          <Button
-            disabled={!delivered || !!working}
-            onClick={() =>
-              void act(async () => {
-                setWorking("confirm");
-                try {
-                  await repository.confirmBackup(prepared.export.id);
-                  await refresh();
-                  closePrepared();
-                  setMessage("Uloženie zálohy je potvrdené.");
-                } finally {
-                  setWorking("");
-                }
-              })
-            }
-          >
-            Zálohu mám bezpečne uloženú
-          </Button>
-          <Button variant="ghost" onClick={closePrepared}>
-            Zatvoriť bez potvrdenia
-          </Button>
-        </Dialog>
+        <BackupReadyDialog
+          prepared={prepared}
+          currentRevision={safety.revision}
+          delivered={delivered}
+          busy={!!working}
+          error={error}
+          onDelivered={() => setDelivered(true)}
+          onError={setError}
+          onClose={closePrepared}
+          onConfirm={() =>
+            void act(async () => {
+              setWorking("confirm");
+              try {
+                await repository.confirmBackup(prepared.export.id);
+                await refresh();
+                closePrepared();
+                setMessage("Uloženie zálohy je potvrdené.");
+              } finally {
+                setWorking("");
+              }
+            })
+          }
+        />
       )}
       {reset && !prepared && (
         <Dialog title="Vymazať miestne údaje?" onClose={() => setReset(false)}>
