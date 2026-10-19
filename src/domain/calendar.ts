@@ -2,7 +2,6 @@ import {
   addDays,
   addMonths,
   addYears,
-  differenceInCalendarDays,
   format,
   getDay,
   parseISO,
@@ -22,8 +21,27 @@ export const shiftDay = (day: Day, n: number) =>
 export const weekday = (day: Day) => getDay(parseISO(day));
 export const weekStart = (day: Day) =>
   dateKey(startOfWeek(parseISO(day), { weekStartsOn: 1 }));
-export const distance = (a: Day, b: Day) =>
-  differenceInCalendarDays(parseISO(a), parseISO(b));
+// Howard Hinnant's civil day count. Same result as a UTC date difference,
+// without constructing a Date on every comparison.
+const dayNumber = (day: Day) => {
+  let year = Number(day.slice(0, 4));
+  const month = Number(day.slice(5, 7)),
+    date = Number(day.slice(8, 10));
+  year -= month <= 2 ? 1 : 0;
+  const era = Math.floor(year / 400),
+    yearOfEra = year - era * 400,
+    dayOfYear =
+      Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + date - 1,
+    dayOfEra =
+      yearOfEra * 365 +
+      Math.floor(yearOfEra / 4) -
+      Math.floor(yearOfEra / 100) +
+      dayOfYear;
+  return era * 146097 + dayOfEra - 719468;
+};
+// Scoring compares this for every task. Date-only keys differ by calendar days,
+// including across DST, without parsing through date-fns on each call.
+export const distance = (a: Day, b: Day) => dayNumber(a) - dayNumber(b);
 function increment(anchor: Day, r: Recurrence, n: number): Day {
   const d = parseISO(anchor),
     count = r.interval * n;

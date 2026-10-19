@@ -57,7 +57,10 @@ export default function Dashboard({
     extras = s.completions.filter(
       (c) => !c.undone && c.day === day && c.type === "extra",
     ),
-    options = extraOptions(s, day),
+    // The extra card is hidden while today's plan still has a task. Scoring the
+    // whole library here used to block the done dialog for seconds.
+    options =
+      currentTasks(s, day).length || rest ? [] : extraOptions(s, day),
     [extraIndex, setExtraIndex] = useState(0),
     extra = options[extraIndex % Math.max(1, options.length)];
   return (
