@@ -5,7 +5,12 @@ import { fixture, now } from "./fixture";
 import { complete, redeem } from "../src/domain/commands";
 import { totalXp, balance, levelFor } from "../src/domain/rewards";
 import { emptyState, tables, uid } from "../src/domain/model";
-import { backupReminderDue, defaultSafety } from "../src/domain/localSafety";
+import {
+  backupReminderDue,
+  defaultSafety,
+  hasUnbackedChanges,
+  reminderSnoozeDays,
+} from "../src/domain/localSafety";
 import {
   checksum,
   openBackup,
@@ -350,6 +355,14 @@ describe("reminders and optional browser storage", () => {
       ),
     ).toBe(false);
     expect(backupReminderDue({ ...meta, reminderDays: 0 }, later)).toBe(false);
+    expect(hasUnbackedChanges(meta)).toBe(true);
+    expect(hasUnbackedChanges({ ...meta, dirtySince: undefined })).toBe(false);
+    expect(hasUnbackedChanges(defaultSafety())).toBe(false);
+    expect(reminderSnoozeDays(meta, "dismiss")).toBe(7);
+    expect(reminderSnoozeDays({ ...meta, reminderDays: 14 }, "dismiss")).toBe(
+      14,
+    );
+    expect(reminderSnoozeDays({ ...meta, reminderDays: 3 }, "week")).toBe(7);
     expect(
       backupReminderDue(
         {
@@ -364,6 +377,18 @@ describe("reminders and optional browser storage", () => {
         },
         later,
       ),
+    ).toBe(false);
+    expect(
+      hasUnbackedChanges({
+        ...meta,
+        confirmed: {
+          id: "x",
+          revision: 4,
+          createdAt: now.toISOString(),
+          confirmedAt: now.toISOString(),
+          filename: "file.zip",
+        },
+      }),
     ).toBe(false);
   });
   it("reports quota errors and warns only when measured storage is constrained", () => {
