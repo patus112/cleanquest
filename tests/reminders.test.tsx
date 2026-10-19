@@ -135,6 +135,7 @@ describe("DailyReminder", () => {
     vi.setSystemTime(now);
     const onBackup = vi.fn();
     const onSnoozeWeek = vi.fn();
+    const onSnoozeBackup = vi.fn();
     render(
       <DailyReminder
         s={state}
@@ -143,9 +144,10 @@ describe("DailyReminder", () => {
         hidden={false}
         onBackup={onBackup}
         onSnoozeWeek={onSnoozeWeek}
+        onSnoozeBackup={onSnoozeBackup}
       />,
     );
-    return { onBackup, onSnoozeWeek };
+    return { onBackup, onSnoozeWeek, onSnoozeBackup };
   };
 
   it("shows today's steps and hides them for the rest of the day", () => {
@@ -196,7 +198,7 @@ describe("DailyReminder", () => {
         nextDue: day,
       }),
     );
-    const { onBackup, onSnoozeWeek } = renderReminder(state, {
+    const { onBackup, onSnoozeWeek, onSnoozeBackup } = renderReminder(state, {
       ...defaultSafety(),
       revision: 2,
       dirtySince: "2026-09-28T12:00:00.000Z",
@@ -207,8 +209,33 @@ describe("DailyReminder", () => {
     expect(screen.getByText(/Od poslednej zálohy/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Zálohovať" }));
     fireEvent.click(screen.getByRole("button", { name: "O týždeň" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Zavrieť pripomienku zálohy" }),
+    );
     expect(onBackup).toHaveBeenCalledOnce();
     expect(onSnoozeWeek).toHaveBeenCalledOnce();
+    expect(onSnoozeBackup).toHaveBeenCalledOnce();
+    cleanup();
+    render(
+      <DailyReminder
+        s={state}
+        safety={{
+          ...defaultSafety(),
+          revision: 2,
+          dirtySince: "2026-09-28T12:00:00.000Z",
+        }}
+        page="home"
+        hidden={false}
+        hideBackup
+        onBackup={() => {}}
+        onSnoozeWeek={() => {}}
+        onSnoozeBackup={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/Od poslednej zálohy/)).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Na dnes zostávajú 3 kroky." }),
+    ).toBeVisible();
   });
 
   it("stays hidden over a dialog and still hides after a failed write", () => {
@@ -225,6 +252,7 @@ describe("DailyReminder", () => {
         hidden
         onBackup={() => {}}
         onSnoozeWeek={() => {}}
+        onSnoozeBackup={() => {}}
       />,
     );
     expect(
@@ -238,6 +266,7 @@ describe("DailyReminder", () => {
         hidden={false}
         onBackup={() => {}}
         onSnoozeWeek={() => {}}
+        onSnoozeBackup={() => {}}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Dnes nie" }));

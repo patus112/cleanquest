@@ -11,7 +11,6 @@ import {
   Zap,
   Check,
   X,
-  RefreshCw,
 } from "lucide-react";
 import { type State, emptyState } from "../domain/model";
 import {
@@ -30,7 +29,12 @@ import Rewards from "./Rewards";
 import Ideas from "./Ideas";
 import Profile from "./Profile";
 import Forms from "./Forms";
-import { defaultSafety, type LocalSafety } from "../domain/localSafety";
+import {
+  defaultSafety,
+  hasUnbackedChanges,
+  reminderSnoozeDays,
+  type LocalSafety,
+} from "../domain/localSafety";
 import DailyReminder from "./DailyReminder";
 import {
   storageStatus,
@@ -39,7 +43,10 @@ import {
   requestPersistentStorage,
   type StorageStatus,
 } from "../persistence/storage";
-import type { ValidatedBackup } from "../persistence/backup";
+import type { PreparedBackup, ValidatedBackup } from "../persistence/backup";
+import { prepareCurrentBackup } from "./backupExport";
+import BackupReadyDialog from "./BackupReadyDialog";
+import UpdateNotice from "./UpdateNotice";
 const repo = new LocalRepository();
 const nav = [
   ["home", "Domov", Home],
@@ -65,6 +72,10 @@ export default function App() {
     [offline, setOffline] = useState(!navigator.onLine),
     [sessionBudget, setSessionBudget] = useState(15);
   const [safety, setSafety] = useState<LocalSafety>(defaultSafety),
+    [exporting, setExporting] = useState(false),
+    [preparedBackup, setPreparedBackup] = useState<PreparedBackup | null>(null),
+    [backupDelivered, setBackupDelivered] = useState(false),
+    [backupError, setBackupError] = useState(""),
     [storage, setStorage] = useState<StorageStatus>({
       persistenceSupported: false,
     });
@@ -72,6 +83,38 @@ export default function App() {
     async () => setStorage(await storageStatus()),
     [],
   );
+  const snoozeReminder = (choice: "dismiss" | "week") =>
+    void repo
+      .updateSafety((meta) => {
+        meta.snoozedUntil = new Date(
+          Date.now() + reminderSnoozeDays(meta, choice) * 86400000,
+        ).toISOString();
+      })
+      .then(refreshSafety)
+      .catch((err) => setError(storageError(err)));
+  const offerBackup = async () => {
+    setExporting(true);
+    setBackupError("");
+    setError("");
+    try {
+      const result = await prepareCurrentBackup(repo);
+      setPreparedBackup(result.prepared);
+      setBackupDelivered(false);
+      if (result.warning) setBackupError(result.warning);
+      else
+        try {
+          await refreshSafety();
+        } catch (err) {
+          setBackupError(
+            `Súbor je pripravený, ale história exportu sa neuložila. ${storageError(err)}`,
+          );
+        }
+    } catch (err) {
+      setError(storageError(err, "Zálohu sa nepodarilo pripraviť."));
+    } finally {
+      setExporting(false);
+    }
+  };
   const refreshSafety = async () => {
     setSafety((await repo.readSnapshot()).safety);
     if (typeof BroadcastChannel !== "undefined") {
@@ -416,51 +459,28 @@ export default function App() {
           </div>
         </div>
         <main id="main-content" className="main-content">
-          {(needRefresh || offlineReady) && (
-            <div className="notice">
-              <span>
-                {needRefresh
-                  ? "Nová verzia CleanQuest je pripravená."
-                  : "CleanQuest je pripravený na použitie bez internetu."}
-              </span>
-              {needRefresh && (
-                <Button
-                  variant="secondary compact"
-                  disabled={busy}
-                  onClick={() => void updateServiceWorker(true)}
-                >
-                  <RefreshCw size={15} />
-                  Aktualizovať
-                </Button>
-              )}
-              <Button
-                variant="icon ghost"
-                aria-label="Zavrieť oznámenie"
-                onClick={() => {
-                  setNeedRefresh(false);
-                  setOfflineReady(false);
-                }}
-              >
-                <X size={16} />
-              </Button>
-            </div>
-          )}
+          <UpdateNotice
+            needRefresh={needRefresh}
+            offlineReady={offlineReady}
+            unbacked={hasUnbackedChanges(safety)}
+            busy={busy || exporting}
+            preparing={exporting}
+            onBackup={() => void offerBackup()}
+            onUpdate={() => void updateServiceWorker(true)}
+            onDismiss={() => {
+              setNeedRefresh(false);
+              setOfflineReady(false);
+            }}
+          />
           <DailyReminder
             s={s}
             safety={safety}
             page={page}
             hidden={!!modal}
+            hideBackup={needRefresh}
             onBackup={() => navigate("profile?section=backup")}
-            onSnoozeWeek={() =>
-              void repo
-                .updateSafety((meta) => {
-                  meta.snoozedUntil = new Date(
-                    Date.now() + 7 * 86400000,
-                  ).toISOString();
-                })
-                .then(refreshSafety)
-                .catch((err) => setError(storageError(err)))
-            }
+            onSnoozeWeek={() => snoozeReminder("week")}
+            onSnoozeBackup={() => snoozeReminder("dismiss")}
           />
           {!modal && page !== "profile" && storageConstrained(storage) && (
             <div className="notice" role="status">
@@ -476,23 +496,11 @@ export default function App() {
             </div>
           )}
           {page === "home" && (
-            <>
-              <div className="session-selector">
-                <span>Dnešný krátky blok</span>
-                <select
-                  aria-label="Dnešný časový blok"
-                  value={sessionBudget}
-                  onChange={(e) => setSessionBudget(Number(e.target.value))}
-                >
-                  {[5, 10, 15, 20, 30].map((n) => (
-                    <option value={n} key={n}>
-                      {n} min
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Dashboard {...props} navigate={navigate} />
-            </>
+            <Dashboard
+              {...props}
+              navigate={navigate}
+              setSessionBudget={setSessionBudget}
+            />
           )}
           {page === "tasks" && <Tasks {...props} />}
           {page === "rewards" && <Rewards {...props} />}
@@ -526,6 +534,37 @@ export default function App() {
         ))}
       </nav>
       {modal && <Forms key={JSON.stringify(modal)} {...props} modal={modal} />}
+      {preparedBackup && (
+        <BackupReadyDialog
+          prepared={preparedBackup}
+          currentRevision={safety.revision}
+          delivered={backupDelivered}
+          busy={busy || exporting}
+          error={backupError}
+          onDelivered={() => setBackupDelivered(true)}
+          onError={setBackupError}
+          onClose={() => {
+            setPreparedBackup(null);
+            setBackupError("");
+          }}
+          onConfirm={() =>
+            void (async () => {
+              setExporting(true);
+              setBackupError("");
+              try {
+                await repo.confirmBackup(preparedBackup.export.id);
+                await refreshSafety();
+                setPreparedBackup(null);
+                setToast("Uloženie zálohy je potvrdené.");
+              } catch (err) {
+                setBackupError(storageError(err));
+              } finally {
+                setExporting(false);
+              }
+            })()
+          }
+        />
+      )}
       <div className="status-layer" aria-live="polite">
         {toast && (
           <div className="toast">

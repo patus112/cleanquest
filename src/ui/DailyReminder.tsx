@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import type { State } from "../domain/model";
 import type { LocalSafety } from "../domain/localSafety";
 import {
@@ -19,15 +20,19 @@ export default function DailyReminder({
   safety,
   page,
   hidden,
+  hideBackup = false,
   onBackup,
   onSnoozeWeek,
+  onSnoozeBackup,
 }: {
   s: State;
   safety: LocalSafety;
   page: string;
   hidden: boolean;
+  hideBackup?: boolean;
   onBackup: () => void;
   onSnoozeWeek: () => void;
+  onSnoozeBackup: () => void;
 }) {
   const [dismissed, setDismissed] = useState(readReminderDismissed);
   const [held, setHeld] = useState<string | null>(null);
@@ -42,8 +47,9 @@ export default function DailyReminder({
   if (hidden) return null;
   const items = collectDailyReminders(s, safety);
   const visible = visibleReminder(items, page);
+  const showBackup = visible.backup && !hideBackup;
   if (
-    (!visible.steps && !visible.laundry && !visible.backup) ||
+    (!visible.steps && !visible.laundry && !showBackup) ||
     dismissed === items.day ||
     held === items.day
   )
@@ -70,7 +76,7 @@ export default function DailyReminder({
               <a href="#/tasks?tab=laundry">{laundryLine(items.laundry)}</a>
             </li>
           )}
-          {visible.backup && (
+          {showBackup && (
             <li className="backup-reminder">
               <span>
                 Od poslednej zálohy sa údaje zmenili. Keď budeš chcieť, ulož si
@@ -81,6 +87,13 @@ export default function DailyReminder({
               </Button>
               <Button variant="ghost compact" onClick={onSnoozeWeek}>
                 O týždeň
+              </Button>
+              <Button
+                variant="icon ghost"
+                aria-label="Zavrieť pripomienku zálohy"
+                onClick={onSnoozeBackup}
+              >
+                <X size={16} />
               </Button>
             </li>
           )}

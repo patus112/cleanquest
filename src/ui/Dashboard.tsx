@@ -19,7 +19,7 @@ import {
   LinkAction,
   type ScreenProps,
 } from "./components";
-import { dayOf, complete, extraOptions } from "../domain/commands";
+import { dayOf, complete, extraOptions, postpone } from "../domain/commands";
 import { dailySession, completedIds, currentTasks } from "../domain/scheduler";
 import { totalXp, levelFor, streak } from "../domain/rewards";
 import { money } from "../domain/model";
@@ -31,8 +31,12 @@ export default function Dashboard({
   run,
   open,
   navigate,
-  sessionBudget,
-}: ScreenProps & { navigate: (page: string) => void }) {
+  sessionBudget = 15,
+  setSessionBudget,
+}: ScreenProps & {
+  navigate: (page: string) => void;
+  setSessionBudget: (minutes: number) => void;
+}) {
   const day = dayOf(s),
     plan = s.dailyPlans.find((p) => p.date === day) || {
       occurrences: [],
@@ -60,8 +64,30 @@ export default function Dashboard({
     options = extraOptions(s, day),
     [extraIndex, setExtraIndex] = useState(0),
     extra = options[extraIndex % Math.max(1, options.length)];
+  const finish = () => {
+    if (!task) return;
+    void run(
+      (state) =>
+        complete(state, task.taskId, "required", task.id, new Date(), 60),
+      `Hotovo. +${task.xp} DA ⚡ · dnes ${done + 1} z ${total}.`,
+    );
+  };
   return (
-    <>
+    <div className="home-screen">
+      <div className="session-selector">
+        <span>Dnešný krátky blok</span>
+        <select
+          aria-label="Dnešný časový blok"
+          value={sessionBudget}
+          onChange={(e) => setSessionBudget(Number(e.target.value))}
+        >
+          {[5, 10, 15, 20, 30].map((n) => (
+            <option value={n} key={n}>
+              {n} min
+            </option>
+          ))}
+        </select>
+      </div>
       <PageHead
         eyebrow={new Intl.DateTimeFormat("sk-SK", {
           weekday: "long",
@@ -84,135 +110,152 @@ export default function Dashboard({
           </Button>
         }
       />
-      <div className="dashboard-grid">
-        <section className="daily-card">
-          <div className="section-heading">
-            <span className="eyebrow">TVOJ DNEŠNÝ RYTMUS</span>
-            <span className="tag">
-              <Clock size={13} />
-              {plan.timeBudget} min denne
-            </span>
-          </div>
-          <div className="daily-content">
-            <div className="ring">
-              <svg viewBox="0 0 150 150" aria-hidden="true">
-                <circle cx="75" cy="75" r="65" />
-                <circle
-                  className="ring-value"
-                  cx="75"
-                  cy="75"
-                  r="65"
-                  strokeDasharray={`${progress * 408} 408`}
-                />
-              </svg>
-              <div>
-                <strong>
-                  {done}
-                  <small>/{total}</small>
-                </strong>
-                <span>malých krokov</span>
-              </div>
-            </div>
+      <section className="daily-card">
+        <div className="section-heading">
+          <span className="eyebrow">TVOJ DNEŠNÝ RYTMUS</span>
+          <span className="tag">
+            <Clock size={13} />
+            {plan.timeBudget} min denne
+          </span>
+        </div>
+        <div className="daily-content">
+          <div className="ring">
+            <svg viewBox="0 0 150 150" aria-hidden="true">
+              <circle cx="75" cy="75" r="65" />
+              <circle
+                className="ring-value"
+                cx="75"
+                cy="75"
+                r="65"
+                strokeDasharray={`${progress * 408} 408`}
+              />
+            </svg>
             <div>
-              <h2>
-                {rest
-                  ? "Dnes máš voľno."
-                  : done === total
-                    ? "Na dnes dobrý pocit."
-                    : "Kúsok po kúsku."}
-              </h2>
-              <p>
-                {rest
-                  ? "Oddych patrí do tvojho plánu."
-                  : done === total
-                    ? "Aj malá pravidelnosť mení domov. Dopraj si pauzu."
-                    : "Nemusíš zvládnuť všetko. Začni jednou malou vecou."}
-              </p>
-              <div className="daily-stats">
-                <span>
-                  <Zap size={16} />
-                  {xp} DA ⚡
-                </span>
-                <span>
-                  <Leaf size={16} />
-                  Úroveň {level.level}
-                </span>
-                <span>{streak(s, day)} dní v rytme</span>
-              </div>
+              <strong>
+                {done}
+                <small>/{total}</small>
+              </strong>
+              <span>malých krokov</span>
             </div>
           </div>
-          <div className="week-strip">
-            {shortDays.map((name, i) => {
-              const d = shiftDay(week.start, i),
-                p = s.dailyPlans.find((p) => p.date === d),
-                isRest = week.restDays.includes(weekday(d)),
-                complete =
-                  !!p?.occurrences.length &&
-                  p.occurrences.every((o) => doneIds.has(o.id));
-              return (
-                <div key={name} className={d === day ? "today" : ""}>
-                  <span>{name}</span>
-                  <i className={complete ? "finished" : isRest ? "rest" : ""}>
-                    {complete ? (
-                      <Check size={16} />
-                    ) : isRest ? (
-                      <Coffee size={15} />
-                    ) : (
-                      <span />
-                    )}
-                  </i>
-                </div>
-              );
-            })}
+          <div>
+            <h2>
+              {rest
+                ? "Dnes máš voľno."
+                : done === total
+                  ? "Na dnes dobrý pocit."
+                  : "Kúsok po kúsku."}
+            </h2>
+            <p>
+              {rest
+                ? "Oddych patrí do tvojho plánu."
+                : done === total
+                  ? "Aj malá pravidelnosť mení domov. Dopraj si pauzu."
+                  : "Nemusíš zvládnuť všetko. Začni jednou malou vecou."}
+            </p>
+            <div className="daily-stats">
+              <span>
+                <Zap size={16} />
+                {xp} DA ⚡
+              </span>
+              <span>
+                <Leaf size={16} />
+                Úroveň {level.level}
+              </span>
+              <span>{streak(s, day)} dní v rytme</span>
+            </div>
           </div>
-        </section>
-        <section className="next-card">
-          <div className="section-heading">
-            <span className="eyebrow">LEN JEDNA VEC</span>
-            <Sparkles size={20} />
-          </div>
-          {task ? (
-            <>
-              <span className="task-location">{task.roomName}</span>
-              <h2>{task.title}</h2>
-              <div className="task-meta">
-                <span>
-                  <Clock size={15} />
-                  {task.duration} min
-                </span>
-                <span>
-                  <Zap size={15} />+{task.xp} DA ⚡
-                </span>
+        </div>
+        <div className="week-strip">
+          {shortDays.map((name, i) => {
+            const d = shiftDay(week.start, i),
+              p = s.dailyPlans.find((p) => p.date === d),
+              isRest = week.restDays.includes(weekday(d)),
+              complete =
+                !!p?.occurrences.length &&
+                p.occurrences.every((o) => doneIds.has(o.id));
+            return (
+              <div key={name} className={d === day ? "today" : ""}>
+                <span>{name}</span>
+                <i className={complete ? "finished" : isRest ? "rest" : ""}>
+                  {complete ? (
+                    <Check size={16} />
+                  ) : isRest ? (
+                    <Coffee size={15} />
+                  ) : (
+                    <span />
+                  )}
+                </i>
               </div>
-              <p>Jedna konkrétna vec. Viditeľný výsledok.</p>
-              <TaskLocation s={s} task={task} compact />
-              <Button onClick={() => open({ kind: "focus" })}>
+            );
+          })}
+        </div>
+      </section>
+      <section className="next-card">
+        <div className="section-heading">
+          <span className="eyebrow">LEN JEDNA VEC</span>
+          <Sparkles size={20} />
+        </div>
+        {task ? (
+          <>
+            <span className="task-location">{task.roomName}</span>
+            <h2>{task.title}</h2>
+            <div className="task-meta">
+              <span>
+                <Clock size={15} />
+                {task.duration} min
+              </span>
+              <span>
+                <Zap size={15} />+{task.xp} DA ⚡
+              </span>
+            </div>
+            <p className="today-progress">
+              Dnes {done} z {total}. Jedna konkrétna vec.
+            </p>
+            <TaskLocation s={s} task={task} compact />
+            <div className="next-actions">
+              <Button onClick={finish}>
+                <Check size={18} />
+                Hotovo
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void run(
+                    (state) => postpone(state, task.id, shiftDay(day, 1)),
+                    "Úloha počká do zajtra.",
+                  )
+                }
+              >
+                Odložiť na zajtra
+              </Button>
+              <Button variant="ghost" onClick={() => open({ kind: "focus" })}>
                 Začať malý krok
                 <ArrowRight size={18} />
               </Button>
-              <button className="subtle-link" onClick={() => navigate("tasks")}>
-                Pozrieť dnešný plán
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="calm-icon">
-                <Leaf size={36} strokeWidth={1.2} />
-              </div>
-              <h2>Teraz je čas na pokoj.</h2>
-              <p>
-                {rest
-                  ? "Dnes nie je nič povinné."
-                  : "Tvoj krátky blok je hotový. Pokračovať môžeš neskôr."}
-              </p>
-              <Button variant="secondary" onClick={() => navigate("ideas")}>
-                Priestor pre nápady
-                <ArrowRight size={18} />
-              </Button>
-            </>
-          )}
-        </section>
-      </div>
+            </div>
+            <button className="subtle-link" onClick={() => navigate("tasks")}>
+              Pozrieť dnešný plán
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="calm-icon">
+              <Leaf size={36} strokeWidth={1.2} />
+            </div>
+            <h2>Teraz je čas na pokoj.</h2>
+            <p>
+              {rest
+                ? "Dnes nie je nič povinné."
+                : "Tvoj krátky blok je hotový. Pokračovať môžeš neskôr."}
+            </p>
+            <Button variant="secondary" onClick={() => navigate("ideas")}>
+              Priestor pre nápady
+              <ArrowRight size={18} />
+            </Button>
+          </>
+        )}
+      </section>
       <div className="lower-grid">
         <section className="card reward-preview">
           <span className="eyebrow">TÝŽDENNÁ ODMENA</span>
@@ -319,6 +362,6 @@ export default function Dashboard({
         <span>Pravidelnosť, nie dokonalosť.</span>
         <ArrowUpRight size={16} />
       </div>
-    </>
+    </div>
   );
 }

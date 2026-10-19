@@ -312,6 +312,21 @@ export default function Tasks({ s, run, open }: ScreenProps) {
                       )}
                     </div>
                   </div>
+                  {!ids.has(o.id) && !(o.deferredTo && o.deferredTo > day) && (
+                    <Button
+                      variant="secondary"
+                      className="postpone-today"
+                      aria-label={`Odložiť na zajtra: ${o.title}`}
+                      onClick={() =>
+                        void run(
+                          (state) => postpone(state, o.id, shiftDay(day, 1)),
+                          "Úloha počká do zajtra.",
+                        )
+                      }
+                    >
+                      Zajtra
+                    </Button>
+                  )}
                   {!ids.has(o.id) && (
                     <details className="task-actions">
                       <summary aria-label={`Možnosti: ${o.title}`}>•••</summary>

@@ -43,6 +43,6 @@ Použi skúšobný domov alebo novú testovaciu inštaláciu. Test vymazania a o
 - [ ] Exportuj ZIP do Súborov; otestuj aj zrušenie zdieľania. Zrušenie nesmie potvrdiť uloženie zálohy.
 - [ ] V oddelenej testovacej inštalácii obnov ZIP; porovnaj aj fotky, históriu, DA a peňaženku. Poškodený ZIP musí odmietnuť bez zmeny aktuálnych údajov.
 - [ ] Over presúvanie predmetov prstom, uloženie/zrušenie rozloženia a čitateľnosť pri väčšom texte, svetlej téme, obmedzení pohybu a VoiceOver.
-- [ ] Po ďalšom schválenom vydaní otvor online, prijmi **Aktualizovať** a over zachovanie domova a offline otvorenie novej verzie.
+- [ ] Po ďalšom schválenom vydaní otvor online. Ak sa údaje od poslednej potvrdenej zálohy zmenili, najprv ulož ZIP alebo zvoľ **Aktualizovať aj tak**. Potom over zachovanie domova a offline otvorenie novej verzie.
 
 Do výsledkov zapíš model iPhone, verziu iOS, Safari alebo spustenie z plochy, konkrétny krok a výsledok. Upozornenia na dnešné kroky, pranie a zálohu sa ukážu pri otvorení aplikácie alebo po návrate do nej a dajú sa na dnešok skryť. Zatvorená aplikácia nesľubuje budík ani push notifikáciu. Denný štuch cez Skratky je v [IOS_REMINDER.md](IOS_REMINDER.md).

@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Check, Clock, RefreshCw, Zap } from "lucide-react";
 import { Dialog, Button, Empty, type ScreenProps } from "./components";
-import { dayOf, complete, replaceOccurrence } from "../domain/commands";
+import {
+  dayOf,
+  complete,
+  postpone,
+  replaceOccurrence,
+} from "../domain/commands";
+import { shiftDay } from "../domain/calendar";
 import { dailySession } from "../domain/scheduler";
 import { TaskLocation } from "./RoomVisual";
 export default function Focus({ s, run, open, sessionBudget }: ScreenProps) {
@@ -82,6 +88,17 @@ export default function Focus({ s, run, open, sessionBudget }: ScreenProps) {
             Mám hotovo
           </Button>
           <div className="actions">
+            <Button
+              variant="ghost"
+              onClick={() =>
+                void run(
+                  (state) => postpone(state, task.id, shiftDay(day, 1)),
+                  "Úloha počká do zajtra.",
+                )
+              }
+            >
+              Odložiť na zajtra
+            </Button>
             <Button
               variant="ghost"
               onClick={() =>

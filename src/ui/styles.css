@@ -376,10 +376,19 @@ button {
 .tag.success {
   color: var(--accent);
 }
-.dashboard-grid {
+.home-screen {
   display: grid;
   grid-template-columns: 1.65fr 1fr;
   gap: 20px;
+}
+.home-screen > :not(.daily-card):not(.next-card) {
+  grid-column: 1 / -1;
+}
+.home-screen > .page-head,
+.home-screen > .session-selector,
+.home-screen > .lower-grid {
+  margin-bottom: 0;
+  margin-top: 0;
 }
 .daily-card {
   border-radius: 17px;
@@ -560,6 +569,30 @@ button {
   margin-top: auto;
   justify-content: space-between;
 }
+.next-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+.next-card .next-actions .button {
+  width: 100%;
+  margin-top: 0;
+  min-height: 44px;
+  justify-content: center;
+}
+.next-card .next-actions .button.ghost {
+  justify-content: space-between;
+}
+.today-progress {
+  margin: 12px 0 0;
+}
+.postpone-today {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
 .subtle-link {
   align-self: center;
   background: none;
@@ -567,7 +600,7 @@ button {
   color: var(--muted);
   font-size: 10px;
   padding: 14px 0 0;
-  min-height: 40px;
+  min-height: 44px;
 }
 .lower-grid {
   display: grid;
@@ -681,7 +714,7 @@ button {
 .session-selector select {
   width: 100px;
   padding: 8px 10px;
-  min-height: 40px;
+  min-height: 44px;
   font-size: 11px;
 }
 .tabs {
@@ -1714,7 +1747,7 @@ dialog::backdrop {
   .daily-stats {
     justify-content: center;
   }
-  .dashboard-grid {
+  .home-screen {
     grid-template-columns: 1.3fr 1fr;
   }
   .daily-card {
@@ -1845,8 +1878,8 @@ dialog::backdrop {
   }
   .page-head > .button {
     font-size: 0;
-    width: 43px;
-    min-height: 43px;
+    width: 44px;
+    min-height: 44px;
     padding: 10px;
     flex-shrink: 0;
     margin-top: 24px;
@@ -1855,10 +1888,34 @@ dialog::backdrop {
     width: 20px;
     height: 20px;
   }
-  .dashboard-grid {
+  .home-screen {
     display: flex;
     flex-direction: column;
     gap: 17px;
+  }
+  .home-screen > .next-card {
+    order: 1;
+  }
+  .home-screen > .page-head {
+    order: 2;
+  }
+  .home-screen > .daily-card {
+    order: 3;
+  }
+  .home-screen > .session-selector {
+    order: 4;
+  }
+  .home-screen > .lower-grid {
+    order: 5;
+  }
+  .home-screen > .extra-card {
+    order: 6;
+  }
+  .home-screen > .closing-note {
+    order: 7;
+  }
+  .next-card .task-visual {
+    display: none;
   }
   .daily-card {
     padding: 21px;
@@ -2113,7 +2170,7 @@ dialog::backdrop {
     padding: 13px;
   }
   .notice .button {
-    min-height: 40px;
+    min-height: 44px;
   }
   .onboarding {
     padding: 25px 21px calc(20px + env(safe-area-inset-bottom));
