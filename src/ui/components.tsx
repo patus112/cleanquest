@@ -1,12 +1,16 @@
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useId,
+  useState,
   Children,
   isValidElement,
   cloneElement,
   type ReactNode,
   type ReactElement,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { X, ArrowRight, type LucideIcon } from "lucide-react";
 import type { State } from "../domain/model";
@@ -52,6 +56,7 @@ export function Button({
   type?: "button" | "submit";
   "aria-label"?: string;
   className?: string;
+  role?: string;
 }) {
   return (
     <button
@@ -63,6 +68,153 @@ export function Button({
     >
       {children}
     </button>
+  );
+}
+const MENU_EVENT = "cleanquest-menu";
+function menuItems(children: ReactNode) {
+  return Children.map(children, (child) =>
+    isValidElement(child)
+      ? cloneElement(child as ReactElement<{ role?: string }>, {
+          role: "menuitem",
+        })
+      : child,
+  );
+}
+export function OverflowMenu({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [flip, setFlip] = useState(false);
+  const [maxHeight, setMaxHeight] = useState<number>();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const place = useCallback(() => {
+    const trigger = triggerRef.current;
+    const menu = menuRef.current;
+    if (!trigger || !menu) return;
+    const rect = trigger.getBoundingClientRect();
+    const nav = document.querySelector(".bottom-nav");
+    const navHeight =
+      nav && getComputedStyle(nav).display !== "none"
+        ? nav.getBoundingClientRect().height
+        : 0;
+    const gap = 8;
+    const spaceBelow = window.innerHeight - navHeight - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+    const needed =
+      (menu.scrollHeight || menu.getBoundingClientRect().height) + 2;
+    const nextFlip = spaceBelow < needed && spaceAbove > spaceBelow;
+    const available = nextFlip ? spaceAbove : spaceBelow;
+    setFlip((current) => (current === nextFlip ? current : nextFlip));
+    setMaxHeight((current) => {
+      const next = Math.max(0, Math.floor(available));
+      return current === next ? current : next;
+    });
+  }, []);
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+  }, [open, place]);
+  useEffect(() => {
+    if (!open) return;
+    const items = menuRef.current?.querySelectorAll<HTMLElement>(
+      "[role='menuitem']:not(:disabled)",
+    );
+    items?.[0]?.focus({ preventScroll: true });
+    const onPointer = (event: PointerEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus({ preventScroll: true });
+    };
+    const onHash = () => setOpen(false);
+    const onOther = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== menuId) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener(MENU_EVENT, onOther);
+    window.dispatchEvent(new CustomEvent(MENU_EVENT, { detail: menuId }));
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener(MENU_EVENT, onOther);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, menuId, place]);
+  const onMenuKey = (event: ReactKeyboardEvent) => {
+    if (!open) return;
+    const items = [
+      ...(menuRef.current?.querySelectorAll<HTMLElement>(
+        "[role='menuitem']:not(:disabled)",
+      ) ?? []),
+    ];
+    if (!items.length) return;
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      items[(index + 1) % items.length]?.focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      items[(index <= 0 ? items.length : index) - 1]?.focus();
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      items[0]?.focus();
+    } else if (event.key === "End") {
+      event.preventDefault();
+      items[items.length - 1]?.focus();
+    }
+  };
+  return (
+    <div
+      ref={rootRef}
+      className={`task-actions${open ? " open" : ""}${open && flip ? " flip" : ""}`}
+      onKeyDown={onMenuKey}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        className="task-menu-trigger"
+        aria-label={label}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+        onClick={() => setOpen((value) => !value)}
+      >
+        •••
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          id={menuId}
+          role="menu"
+          aria-label={label}
+          style={maxHeight != null ? { maxHeight } : undefined}
+          onClick={(event) => {
+            const node = event.target as Node | null;
+            const target = node instanceof Element ? node : node?.parentElement;
+            if (target?.closest("[role='menuitem']")) setOpen(false);
+          }}
+        >
+          {menuItems(children)}
+        </div>
+      )}
+    </div>
   );
 }
 export function Dialog({

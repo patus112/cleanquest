@@ -776,14 +776,27 @@ button {
 .task-row.paused {
   opacity: 0.65;
 }
+.task-row:has(.task-actions.open) {
+  position: relative;
+  z-index: 4;
+}
 .task-actions {
   position: relative;
   flex-shrink: 0;
 }
-.task-actions summary {
-  list-style: none;
-  font-size: 17px;
+.task-actions.open {
+  z-index: 2;
+}
+.task-actions .task-menu-trigger {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  line-height: 1;
   letter-spacing: 2px;
+  font-size: 17px;
   display: grid;
   place-items: center;
   width: 44px;
@@ -792,10 +805,7 @@ button {
   cursor: pointer;
   color: var(--muted);
 }
-.task-actions summary::-webkit-details-marker {
-  display: none;
-}
-.task-actions[open] > div {
+.task-actions.open > [role="menu"] {
   position: absolute;
   right: 0;
   top: 43px;
@@ -808,6 +818,11 @@ button {
   border-radius: 10px;
   min-width: 210px;
   box-shadow: 0 15px 50px #0004;
+  overflow-y: auto;
+}
+.task-actions.open.flip > [role="menu"] {
+  top: auto;
+  bottom: 43px;
 }
 .task-actions .button {
   justify-content: flex-start;
@@ -2239,7 +2254,7 @@ dialog::backdrop {
   .day-checks span {
     min-width: 35px;
   }
-  .task-actions[open] > div {
+  .task-actions.open > [role="menu"] {
     min-width: 200px;
   }
   .cycle-input input {

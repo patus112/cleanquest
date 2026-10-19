@@ -29,7 +29,13 @@ import {
 } from "../domain/commands";
 import { completedIds, currentTasks, dailySession } from "../domain/scheduler";
 import { shiftDay, recurrenceLabel } from "../domain/calendar";
-import { Button, Empty, PageHead, type ScreenProps } from "./components";
+import {
+  Button,
+  Empty,
+  OverflowMenu,
+  PageHead,
+  type ScreenProps,
+} from "./components";
 import { generateTasks } from "../data/templates";
 import {
   HouseholdMap,
@@ -82,7 +88,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
   );
   const taskList = (tasks: Task[]) =>
     tasks.length ? (
-      <div className="task-list">
+      <div className="task-list" key={tab}>
         {tasks.map((t) => (
           <article
             className={`task-row ${!t.enabled ? "paused" : ""}`}
@@ -122,87 +128,84 @@ export default function Tasks({ s, run, open }: ScreenProps) {
                 )}
               </div>
             </div>
-            <details className="task-actions">
-              <summary aria-label={`Možnosti: ${t.title}`}>•••</summary>
-              <div>
+            <OverflowMenu label={`Možnosti: ${t.title}`}>
+              <Button
+                variant="ghost"
+                onClick={() => open({ kind: "location", taskId: t.id })}
+              >
+                <MapPin size={16} />
+                Ukázať miesto
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => open({ kind: "task", id: t.id })}
+              >
+                <Pencil size={16} />
+                Upraviť
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  void run(
+                    (state) => duplicateTask(state, t.id),
+                    "Vytvorená kópia.",
+                  )
+                }
+              >
+                <Copy size={16} />
+                Duplikovať
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  void run((state) => {
+                    const task = state.tasks.find((x) => x.id === t.id);
+                    if (task) task.enabled = !task.enabled;
+                  })
+                }
+              >
+                {t.enabled ? <Pause size={16} /> : <Play size={16} />}{" "}
+                {t.enabled ? "Pozastaviť" : "Aktivovať"}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => open({ kind: "split", id: t.id })}
+              >
+                <Scissors size={16} />
+                Rozdeliť
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  open({ kind: "delete", entity: "task", id: t.id })
+                }
+              >
+                <Trash2 size={16} />
+                Odstrániť
+              </Button>
+              {t.enabled && t.nextDue <= day && (
                 <Button
-                  variant="ghost"
-                  onClick={() => open({ kind: "location", taskId: t.id })}
-                >
-                  <MapPin size={16} />
-                  Ukázať miesto
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => open({ kind: "task", id: t.id })}
-                >
-                  <Pencil size={16} />
-                  Upraviť
-                </Button>
-                <Button
-                  variant="ghost"
+                  variant="secondary"
                   onClick={() =>
                     void run(
-                      (state) => duplicateTask(state, t.id),
-                      "Vytvorená kópia.",
+                      (state) =>
+                        complete(
+                          state,
+                          t.id,
+                          "manual",
+                          undefined,
+                          new Date(),
+                          cycle,
+                        ),
+                      "Malý krok je hotový.",
                     )
                   }
                 >
-                  <Copy size={16} />
-                  Duplikovať
+                  <Check size={16} />
+                  Dokončiť teraz
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void run((state) => {
-                      const task = state.tasks.find((x) => x.id === t.id);
-                      if (task) task.enabled = !task.enabled;
-                    })
-                  }
-                >
-                  {t.enabled ? <Pause size={16} /> : <Play size={16} />}{" "}
-                  {t.enabled ? "Pozastaviť" : "Aktivovať"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => open({ kind: "split", id: t.id })}
-                >
-                  <Scissors size={16} />
-                  Rozdeliť
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    open({ kind: "delete", entity: "task", id: t.id })
-                  }
-                >
-                  <Trash2 size={16} />
-                  Odstrániť
-                </Button>
-                {t.enabled && t.nextDue <= day && (
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      void run(
-                        (state) =>
-                          complete(
-                            state,
-                            t.id,
-                            "manual",
-                            undefined,
-                            new Date(),
-                            cycle,
-                          ),
-                        "Malý krok je hotový.",
-                      )
-                    }
-                  >
-                    <Check size={16} />
-                    Dokončiť teraz
-                  </Button>
-                )}
-              </div>
-            </details>
+              )}
+            </OverflowMenu>
           </article>
         ))}
       </div>
@@ -337,75 +340,71 @@ export default function Tasks({ s, run, open }: ScreenProps) {
                     </Button>
                   )}
                   {!ids.has(o.id) && (
-                    <details className="task-actions">
-                      <summary aria-label={`Možnosti: ${o.title}`}>•••</summary>
-                      <div>
+                    <OverflowMenu label={`Možnosti: ${o.title}`}>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          open({
+                            kind: "location",
+                            taskId: o.taskId,
+                            occurrenceId: o.id,
+                          })
+                        }
+                      >
+                        <MapPin size={16} />
+                        Ukázať miesto
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          void run(
+                            (state) => postpone(state, o.id, shiftDay(day, 1)),
+                            "Úloha počká do zajtra.",
+                          )
+                        }
+                      >
+                        Odložiť na zajtra
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          void run(
+                            (state) => replaceOccurrence(state, o.id, day),
+                            "Úloha bola nahradená.",
+                          )
+                        }
+                      >
+                        <RefreshCw size={16} />
+                        Nahradiť
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          void run((state) => {
+                            const item = state.dailyPlans
+                              .flatMap((p) => p.occurrences)
+                              .find((x) => x.id === o.id);
+                            if (item)
+                              item.status =
+                                item.status === "skipped"
+                                  ? "pending"
+                                  : "skipped";
+                          }, "Stav úlohy bol zmenený.")
+                        }
+                      >
+                        {o.status === "skipped"
+                          ? "Vrátiť do plánu"
+                          : "Vynechať dnes"}
+                      </Button>
+                      {s.tasks.some((t) => t.id === o.taskId) && (
                         <Button
                           variant="ghost"
-                          onClick={() =>
-                            open({
-                              kind: "location",
-                              taskId: o.taskId,
-                              occurrenceId: o.id,
-                            })
-                          }
+                          onClick={() => open({ kind: "task", id: o.taskId })}
                         >
-                          <MapPin size={16} />
-                          Ukázať miesto
+                          Upraviť budúce opakovanie
                         </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void run(
-                              (state) =>
-                                postpone(state, o.id, shiftDay(day, 1)),
-                              "Úloha počká do zajtra.",
-                            )
-                          }
-                        >
-                          Odložiť na zajtra
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void run(
-                              (state) => replaceOccurrence(state, o.id, day),
-                              "Úloha bola nahradená.",
-                            )
-                          }
-                        >
-                          <RefreshCw size={16} />
-                          Nahradiť
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void run((state) => {
-                              const item = state.dailyPlans
-                                .flatMap((p) => p.occurrences)
-                                .find((x) => x.id === o.id);
-                              if (item)
-                                item.status =
-                                  item.status === "skipped"
-                                    ? "pending"
-                                    : "skipped";
-                            }, "Stav úlohy bol zmenený.")
-                          }
-                        >
-                          {o.status === "skipped"
-                            ? "Vrátiť do plánu"
-                            : "Vynechať dnes"}
-                        </Button>
-                        {s.tasks.some((t) => t.id === o.taskId) && (
-                          <Button
-                            variant="ghost"
-                            onClick={() => open({ kind: "task", id: o.taskId })}
-                          >
-                            Upraviť budúce opakovanie
-                          </Button>
-                        )}
-                      </div>
-                    </details>
+                      )}
+                    </OverflowMenu>
                   )}
                 </article>
               ))}
