@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 import {
+  distance,
   nextOccurrence,
   todayIn,
   shiftDay,
@@ -36,6 +38,7 @@ import {
   streak,
 } from "../src/domain/rewards";
 import { uid, xpFor, type Recurrence } from "../src/domain/model";
+import { createHousehold } from "../src/data/household";
 import { templates, generateTasks } from "../src/data/templates";
 import {
   validateState,
@@ -128,6 +131,23 @@ describe("calendar recurrence", () => {
   });
   it("Monday–Sunday cycle", () =>
     expect(weekStart("2026-10-11")).toBe("2026-10-05"));
+  it("counts calendar days, including a leap day", () => {
+    expect(distance("2026-10-05", "2026-10-05")).toBe(0);
+    expect(distance("2026-10-06", "2026-10-05")).toBe(1);
+    expect(distance("2026-10-05", "2026-10-06")).toBe(-1);
+    expect(distance("2024-03-01", "2024-02-28")).toBe(2);
+    expect(distance("2025-01-01", "2024-12-31")).toBe(1);
+    let cursor = new Date(2020, 0, 1);
+    const end = new Date(2032, 0, 1),
+      anchor = parseISO("2026-10-05");
+    while (cursor < end) {
+      const key = format(cursor, "yyyy-MM-dd");
+      expect(distance(key, "2026-10-05")).toBe(
+        differenceInCalendarDays(parseISO(key), anchor),
+      );
+      cursor = addDays(cursor, 1);
+    }
+  });
 });
 describe("scheduling", () => {
   it.each([5, 10, 15, 20, 30])("fits %i minute budget", (budget) => {
@@ -184,6 +204,36 @@ describe("scheduling", () => {
     expect(
       new Set(pickTasks(s, day, s.tasks, 10).map((t) => t.roomId)).size,
     ).toBe(2);
+  });
+  it("scores a prepared home without a multi-second stall", () => {
+    const s = createHousehold(
+      {
+        name: "Domov cez Wi-Fi",
+        displayName: "Patricia",
+        type: "house",
+        area: 0,
+        floors: 2,
+        residents: 1,
+        children: false,
+        pets: false,
+        template: true,
+        rooms: [],
+        budget: 30,
+        restDays: [0],
+        monetary: true,
+        intensity: "gentle",
+        specialNeeds: "",
+      },
+      new Date("2026-10-05T12:00:00.000Z"),
+    );
+    expect(s.tasks.length).toBeGreaterThan(300);
+    const dayKey = s.households[0].createdAt.slice(0, 10);
+    extraOptions(s, dayKey);
+    const started = performance.now();
+    const choices = extraOptions(s, dayKey);
+    const elapsed = performance.now() - started;
+    expect(elapsed).toBeLessThan(100);
+    expect(choices.length).toBeGreaterThan(0);
   });
   it("low energy avoids high energy tasks", () => {
     const s = fixture(false);
