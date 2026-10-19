@@ -41,3 +41,15 @@ export function backupReminderDue(meta: LocalSafety, now = new Date()) {
   const since = meta.confirmed?.confirmedAt || meta.dirtySince;
   return now.getTime() - Date.parse(since) >= meta.reminderDays * 86400000;
 }
+/** Data differs from the last backup the user explicitly confirmed as saved. */
+export function hasUnbackedChanges(meta: LocalSafety) {
+  return !!meta.dirtySince && meta.confirmed?.revision !== meta.revision;
+}
+/** Dismissal waits out the chosen interval. "O týždeň" is always seven days. */
+export function reminderSnoozeDays(
+  meta: LocalSafety,
+  choice: "dismiss" | "week",
+) {
+  if (choice === "week") return 7;
+  return meta.reminderDays > 0 ? meta.reminderDays : 7;
+}

@@ -12,11 +12,11 @@ Preparation captures a consistent household/revision snapshot. If data changes w
 
 Filename: `cleanquest-backup-YYYY-MM-DD-HHMM.zip`, using the exporting device's local date/time.
 
-| Entry | Contents |
-| --- | --- |
-| `manifest.json` | `format: cleanquest-zip`, format version 1, data schema 2, database version 5, application version, UTC creation time, household ID, current revision, counts, photo descriptors, checksums and manifest hash |
-| `data.json` | `format: cleanquest-data`, schema 2, all household tables, reminder preference and safety metadata |
-| `photos/0001.jpg` etc. | PNG/JPEG/WebP raster bytes; numbered filenames, no executable content or filesystem paths |
+| Entry                  | Contents                                                                                                                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest.json`        | `format: cleanquest-zip`, format version 1, data schema 2, database version 5, application version, UTC creation time, household ID, current revision, counts, photo descriptors, checksums and manifest hash |
+| `data.json`            | `format: cleanquest-data`, schema 2, all household tables, reminder preference and safety metadata                                                                                                            |
+| `photos/0001.jpg` etc. | PNG/JPEG/WebP raster bytes; numbered filenames, no executable content or filesystem paths                                                                                                                     |
 
 Household tables: profiles, households, floors, rooms, objects, tasks, completions, dailyPlans, weeks, bonuses, megas, problems, rewards, achievements, wishes and settings. DA/levels and wallet balance are derived from their preserved ledgers and flags, with integer cents unchanged. Template definitions ship with the application; every instantiated task carries its title/instructions/recurrence and is exported.
 
@@ -46,7 +46,9 @@ Opening, validating, cancelling or rejecting an import never deletes current dat
 
 ## Revision, reminders and storage
 
-A successful content-changing command advances the persisted revision atomically with household data. Unchanged reloads, export preparation, confirmation and snoozing do not change that content revision. A preference change does. Default reminders appear after seven days only when data differs from the last explicitly confirmed saved snapshot; choose 3/7/14/30 days or disable them. A dismissal snoozes one day, **O týždeň** snoozes seven. The reminder never appears over focus mode or another dialog.
+A successful content-changing command advances the persisted revision atomically with household data. Unchanged reloads, export preparation, confirmation and snoozing do not change that content revision. A preference change does. Default reminders appear after seven days only when data differs from the last explicitly confirmed saved snapshot; choose 3/7/14/30 days or disable them. Closing the reminder snoozes for that chosen interval, so it does not return the next day. **O týždeň** snoozes seven days. The reminder stays on Domov, never over focus mode or another dialog, and stays hidden while an application update is waiting.
+
+When a new version is waiting and household data differs from the last confirmed backup, **Aktualizovať** does not apply immediately. The notice offers **Uložiť zálohu** first — the same ZIP preparation, share or download, and explicit saved confirmation as Profil. **Aktualizovať aj tak** skips the export and applies the waiting service worker. If the latest backup is already confirmed, the notice keeps the single **Aktualizovať** action. The service worker still only replaces application caches and does not delete IndexedDB.
 
 `navigator.storage.persist()` is requested where supported, with explicit granted/denied/unavailable status. `estimate()` is optional; its origin-level usage includes the offline cache. A measured usage of at least 85% triggers a discreet warning. Quota errors retain previously committed records and suggest exporting a backup. Service worker updates remove obsolete application caches and never delete or reset IndexedDB.
 
