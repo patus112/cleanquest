@@ -12,6 +12,16 @@ test("waiting update offers the existing backup first when data is unbacked", as
   try {
     await seed(page);
     await page.setViewportSize({ width: 390, height: 844 });
+    // seed() reloads as soon as the household is visible. That navigation
+    // often starts in the same instant the worker finishes precaching, so
+    // the new document is not controlled, and clients.claim() does not
+    // attach it afterwards. Wait until the worker is active, then open a
+    // document it actually controls before the script is changed.
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Ahoj, Patricia." }),
+    ).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), {
         timeout: 15000,
