@@ -12,6 +12,7 @@ import {
   Trash2,
   Undo2,
   ChevronRight,
+  ListChecks,
   MapPin,
   Move,
   ArrowRightLeft,
@@ -37,6 +38,7 @@ import {
   RoomIcon,
   ObjectIcon,
 } from "./RoomVisual";
+import { TidyKit } from "./art";
 const tasksTabFromHash = () => {
   const tab = new URLSearchParams(location.hash.split("?")[1] || "").get("tab");
   return tab === "rooms" || tab === "laundry" ? tab : "today";
@@ -224,6 +226,8 @@ export default function Tasks({ s, run, open }: ScreenProps) {
         eyebrow="MALÉ ÚLOHY, VIDITEĽNÝ VÝSLEDOK"
         title="Tvoj domov v rytme."
         text="Všetko má svoje miesto. Aj čas na oddych."
+        icon={ListChecks}
+        art={<TidyKit />}
         action={
           <Button
             onClick={() => open({ kind: "task", roomId: roomId || undefined })}
@@ -252,7 +256,12 @@ export default function Tasks({ s, run, open }: ScreenProps) {
       {tab === "today" && (
         <>
           <div className="section-heading">
-            <h2>Dnešný plán</h2>
+            <h2 className="with-badge">
+              <span className="section-badge" aria-hidden="true">
+                <ListChecks size={16} strokeWidth={1.75} />
+              </span>
+              Dnešný plán
+            </h2>
             <span className="muted">
               {s.dailyPlans.find((p) => p.date === day)?.timeBudget} min ·
               vlastným tempom
@@ -586,7 +595,12 @@ export default function Tasks({ s, run, open }: ScreenProps) {
         ) : (
           <>
             <div className="section-heading">
-              <h2>Miestnosti</h2>
+              <h2 className="with-badge">
+                <span className="section-badge" aria-hidden="true">
+                  <ListChecks size={16} strokeWidth={1.75} />
+                </span>
+                Miestnosti
+              </h2>
               <Button
                 variant="secondary"
                 onClick={() => open({ kind: "room" })}

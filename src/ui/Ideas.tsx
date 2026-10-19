@@ -5,12 +5,14 @@ import {
   Empty,
   PageHead,
   Progress,
+  SectionLabel,
   PhotoInput,
   photoFrom,
   type ScreenProps,
 } from "./components";
 import { dayOf, createMega, propose } from "../domain/commands";
 import { money, uid } from "../domain/model";
+import { SunnyWindow } from "./art";
 import { reconcile } from "../domain/rewards";
 export default function Ideas({ s, run, open }: ScreenProps) {
   const [history, setHistory] = useState(false),
@@ -25,6 +27,8 @@ export default function Ideas({ s, run, open }: ScreenProps) {
         eyebrow="PRIESTOR PRE LEPŠÍ DOMOV"
         title="Toto ma doma štve."
         text="Zachyť nápad teraz. Riešenie môže pokojne počkať."
+        icon={Lightbulb}
+        art={<SunnyWindow />}
         action={
           <Button onClick={() => open({ kind: "problem" })}>
             <Plus size={18} />
@@ -35,8 +39,7 @@ export default function Ideas({ s, run, open }: ScreenProps) {
       {mega ? (
         <section className="card mega-card">
           <div className="section-heading">
-            <span className="eyebrow">MESAČNÁ MEGA VÝZVA · +500 DA ⚡</span>
-            <Sparkles size={22} />
+            <SectionLabel icon={Sparkles}>Mesačná mega výzva · +500 DA ⚡</SectionLabel>
           </div>
           <h2>{mega.title}</h2>
           <p>{mega.problem}</p>

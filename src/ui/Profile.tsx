@@ -1,5 +1,19 @@
-import { Home, Plus, Pencil, Trash2 } from "lucide-react";
-import { Button, Field, PageHead, type ScreenProps } from "./components";
+import {
+  Clock,
+  Home,
+  Layers,
+  Plus,
+  Pencil,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import {
+  Button,
+  Field,
+  PageHead,
+  SectionLabel,
+  type ScreenProps,
+} from "./components";
 import { type Settings, uid, emptyState } from "../domain/model";
 import { HouseholdMap } from "./RoomVisual";
 import BackupPanel from "./BackupPanel";
@@ -7,6 +21,7 @@ import type { LocalSafety } from "../domain/localSafety";
 import type { Repository } from "../persistence/repository";
 import type { ValidatedBackup } from "../persistence/backup";
 import type { StorageStatus } from "../persistence/storage";
+import { HomeGlow } from "./art";
 export default function Profile({
   s,
   run,
@@ -37,9 +52,16 @@ export default function Profile({
         eyebrow="DOMOV PODĽA TEBA"
         title="Tvoj rytmus, tvoje pravidlá."
         text="Všetko si môžeš upraviť. Aj tempo."
+        icon={UserRound}
+        art={<HomeGlow />}
       />
       <section className="card spaced" id="ios-reminder">
-        <h2>Denné pripomenutie na iPhone</h2>
+        <h2 className="with-badge">
+          <span className="section-badge" aria-hidden="true">
+            <Home size={16} strokeWidth={1.75} />
+          </span>
+          Denné pripomenutie na iPhone
+        </h2>
         <p>
           CleanQuest neposiela upozornenia a nemá server. Pokojné pripomenutie
           sa ukáže, keď aplikáciu otvoríš alebo sa k nej vrátiš. Denný štuch si
@@ -102,7 +124,12 @@ export default function Profile({
       </section>
       <div className="two-column">
         <section className="card">
-          <h3>Čas a energia</h3>
+          <h3 className="with-badge">
+            <span className="section-badge" aria-hidden="true">
+              <Clock size={16} strokeWidth={1.75} />
+            </span>
+            Čas a energia
+          </h3>
           <form
             key={JSON.stringify(settings)}
             onSubmit={(e) => {
@@ -169,7 +196,12 @@ export default function Profile({
           </form>
         </section>
         <section className="card">
-          <h3>Vzhľad a odmeny</h3>
+          <h3 className="with-badge">
+            <span className="section-badge" aria-hidden="true">
+              <UserRound size={16} strokeWidth={1.75} />
+            </span>
+            Vzhľad a odmeny
+          </h3>
           <Field label="Vzhľad">
             <select
               value={settings.theme}
@@ -253,7 +285,7 @@ export default function Profile({
       </div>
       <section className="card spaced">
         <div className="section-heading">
-          <h3>Podlažia a miestnosti</h3>
+          <SectionLabel icon={Layers}>Podlažia a miestnosti</SectionLabel>
           <Button
             variant="secondary"
             onClick={() => navigate("tasks?tab=rooms")}

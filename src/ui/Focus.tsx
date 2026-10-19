@@ -10,6 +10,7 @@ import {
 import { shiftDay } from "../domain/calendar";
 import { dailySession } from "../domain/scheduler";
 import { TaskLocation } from "./RoomVisual";
+import { SunnyWindow } from "./art";
 export default function Focus({ s, run, open, sessionBudget }: ScreenProps) {
   const [feedback, setFeedback] = useState(false),
     [cycle, setCycle] = useState(60);
@@ -19,8 +20,11 @@ export default function Focus({ s, run, open, sessionBudget }: ScreenProps) {
     <Dialog title="Len jedna vec" onClose={() => open(null)}>
       {feedback ? (
         <div className="focus">
-          <div className="success-circle">
-            <Check size={40} />
+          <div className="done-moment">
+            <SunnyWindow className="done-art" />
+            <div className="success-circle">
+              <Check size={28} />
+            </div>
           </div>
           <h2>Malý krok. Hotovo.</h2>
           <p>Aj toto sa počíta. Pokračuj, iba ak chceš.</p>

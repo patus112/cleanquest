@@ -22,6 +22,7 @@ import { ensurePlans } from "../domain/scheduler";
 import { dayOf } from "../domain/commands";
 import { totalXp, levelFor } from "../domain/rewards";
 import { Button, type ModalType } from "./components";
+import { ShineBurst, SunnyWindow } from "./art";
 import Onboarding from "./Onboarding";
 import Dashboard from "./Dashboard";
 import Tasks from "./Tasks";
@@ -347,7 +348,7 @@ export default function App() {
   if (upgrade)
     return (
       <main className="loading">
-        <Leaf />
+        <SunnyWindow className="loading-art" />
         <p className="upgrade-copy" role="alert">
           {upgrade === "blocked"
             ? "Iné okno ešte používa staršiu verziu CleanQuest. Zavri ho alebo ho obnov. Táto stránka potom pokračuje sama a nič sa nemaže."
@@ -362,7 +363,7 @@ export default function App() {
   )
     return (
       <div className="loading">
-        <Leaf />
+        <SunnyWindow className="loading-art" />
         <p>Pripravujem tvoj domov…</p>
       </div>
     );
@@ -385,7 +386,11 @@ export default function App() {
       />
     );
   const level = levelFor(totalXp(s)),
-    props = { s, run, open: setModal, sessionBudget };
+    props = { s, run, open: setModal, sessionBudget },
+    celebrate =
+      toast.startsWith("Hotovo") ||
+      toast.startsWith("Malý krok je hotový") ||
+      toast.startsWith("Domov je o krok lepší");
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -411,7 +416,7 @@ export default function App() {
               aria-current={page === id ? "page" : undefined}
               className={page === id ? "active" : ""}
             >
-              <Icon size={20} />
+              <Icon size={20} strokeWidth={1.75} />
               <span>{label}</span>
             </a>
           ))}
@@ -459,6 +464,26 @@ export default function App() {
           </div>
         </div>
         <main id="main-content" className="main-content">
+          <div className="status-layer" aria-live="polite">
+            {toast && (
+              <div className={`toast${celebrate ? " is-done" : ""}`}>
+                <Check size={17} />
+                {toast}
+              </div>
+            )}
+            {error && (
+              <div className="error-toast" role="alert">
+                <span>{error}</span>
+                <Button
+                  variant="icon ghost"
+                  aria-label="Zavrieť chybu"
+                  onClick={() => setError("")}
+                >
+                  <X size={17} />
+                </Button>
+              </div>
+            )}
+          </div>
           <UpdateNotice
             needRefresh={needRefresh}
             offlineReady={offlineReady}
@@ -528,7 +553,7 @@ export default function App() {
             aria-current={page === id ? "page" : undefined}
             className={page === id ? "active" : ""}
           >
-            <Icon size={21} />
+            <Icon size={21} strokeWidth={1.75} />
             <span>{label}</span>
           </a>
         ))}
@@ -565,26 +590,7 @@ export default function App() {
           }
         />
       )}
-      <div className="status-layer" aria-live="polite">
-        {toast && (
-          <div className="toast">
-            <Check size={17} />
-            {toast}
-          </div>
-        )}
-      </div>
-      {error && (
-        <div className="error-toast" role="alert">
-          <span>{error}</span>
-          <Button
-            variant="icon ghost"
-            aria-label="Zavrieť chybu"
-            onClick={() => setError("")}
-          >
-            <X size={17} />
-          </Button>
-        </div>
-      )}
+      {celebrate && <ShineBurst key={toast} />}
       {busy && (
         <div className="saving" role="status">
           Ukladám…

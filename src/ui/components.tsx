@@ -8,9 +8,10 @@ import {
   type ReactNode,
   type ReactElement,
 } from "react";
-import { X, Check, ArrowRight } from "lucide-react";
+import { X, ArrowRight, type LucideIcon } from "lucide-react";
 import type { State } from "../domain/model";
 import { optimizePhoto } from "../persistence/photos";
+import { TidyKit } from "./art";
 export interface ScreenProps {
   sessionBudget?: number;
   s: State;
@@ -134,20 +135,38 @@ export function Empty({
   title,
   text,
   action,
+  art,
 }: {
   title: string;
   text: string;
   action?: ReactNode;
+  art?: ReactNode;
 }) {
   return (
     <div className="empty">
-      <span className="empty-mark">
-        <Check size={26} />
-      </span>
+      <div className="empty-art" aria-hidden="true">
+        {art ?? <TidyKit />}
+      </div>
       <h3>{title}</h3>
       <p>{text}</p>
       {action}
     </div>
+  );
+}
+export function SectionLabel({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <span className="section-label">
+      <span className="section-badge" aria-hidden="true">
+        <Icon size={16} strokeWidth={1.75} />
+      </span>
+      <span className="eyebrow">{children}</span>
+    </span>
   );
 }
 export function PageHead({
@@ -155,19 +174,35 @@ export function PageHead({
   title,
   text,
   action,
+  art,
+  icon: Icon,
 }: {
   eyebrow: string;
   title: string;
   text?: string;
   action?: ReactNode;
+  art?: ReactNode;
+  icon?: LucideIcon;
 }) {
   return (
     <header className="page-head">
-      <div>
-        <span className="eyebrow">{eyebrow}</span>
+      <div className="page-head-copy">
+        <span className="page-kicker">
+          {Icon ? (
+            <span className="section-badge" aria-hidden="true">
+              <Icon size={16} strokeWidth={1.75} />
+            </span>
+          ) : null}
+          <span className="eyebrow">{eyebrow}</span>
+        </span>
         <h1>{title}</h1>
         {text && <p>{text}</p>}
       </div>
+      {art ? (
+        <div className="page-art" aria-hidden="true">
+          {art}
+        </div>
+      ) : null}
       {action}
     </header>
   );

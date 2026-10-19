@@ -1,5 +1,7 @@
 import {
+  CalendarCheck,
   Check,
+  Gift,
   Plus,
   Trophy,
   Wallet,
@@ -14,6 +16,7 @@ import {
   Progress,
   PageHead,
   Empty,
+  SectionLabel,
   type ScreenProps,
 } from "./components";
 import { totalXp, levelFor, balance, reconcile } from "../domain/rewards";
@@ -21,6 +24,7 @@ import { completedIds } from "../domain/scheduler";
 import { dayOf, replaceBonus } from "../domain/commands";
 import { weekStart } from "../domain/calendar";
 import { money } from "../domain/model";
+import { PlantSprig } from "./art";
 export default function Rewards({ s, run, open }: ScreenProps) {
   const day = dayOf(s),
     xp = totalXp(s),
@@ -36,6 +40,8 @@ export default function Rewards({ s, run, open }: ScreenProps) {
         eyebrow="POKROK, KTORÝ SA POČÍTA"
         title="Zaslúžené malé radosti."
         text="Odmeny za pravidelnosť. Priestor na niečo pre seba."
+        icon={Gift}
+        art={<PlantSprig />}
       />
       <div className="reward-grid">
         <section className="card level-card">
@@ -55,8 +61,7 @@ export default function Rewards({ s, run, open }: ScreenProps) {
         </section>
         <section className="wallet-card card">
           <div className="section-heading">
-            <span className="eyebrow">VIRTUÁLNY ROZPOČET</span>
-            <Wallet size={22} />
+            <SectionLabel icon={Wallet}>Virtuálny rozpočet</SectionLabel>
           </div>
           <strong className="balance">{money(available)}</strong>
           <p>Dostupné na tvoju osobnú odmenu.</p>
@@ -83,7 +88,7 @@ export default function Rewards({ s, run, open }: ScreenProps) {
       <div className="two-column">
         <section className="card">
           <div className="section-heading">
-            <span className="eyebrow">DOHODNUTÝ TÝŽDENNÝ PLÁN</span>
+            <SectionLabel icon={CalendarCheck}>Dohodnutý týždenný plán</SectionLabel>
             <span className="tag">{money(week.rewardCents)}</span>
           </div>
           <h3>
@@ -119,8 +124,7 @@ export default function Rewards({ s, run, open }: ScreenProps) {
         </section>
         <section className="card">
           <div className="section-heading">
-            <span className="eyebrow">DOBROVOĽNÁ TÝŽDENNÁ VÝZVA</span>
-            <Trophy size={20} />
+            <SectionLabel icon={Trophy}>Dobrovoľná týždenná výzva</SectionLabel>
           </div>
           <h3>{bonus.title}</h3>
           <p>
@@ -178,7 +182,12 @@ export default function Rewards({ s, run, open }: ScreenProps) {
         </section>
       </div>
       <div className="section-heading spaced">
-        <h2>Malé radosti na zozname</h2>
+        <h2 className="with-badge">
+          <span className="section-badge" aria-hidden="true">
+            <Gift size={16} strokeWidth={1.75} />
+          </span>
+          Malé radosti na zozname
+        </h2>
         <Button variant="secondary" onClick={() => open({ kind: "wish" })}>
           <Plus size={17} />
           Pridať želanie
@@ -239,7 +248,12 @@ export default function Rewards({ s, run, open }: ScreenProps) {
         />
       )}
       <div className="section-heading spaced">
-        <h2>Milé míľniky</h2>
+        <h2 className="with-badge">
+          <span className="section-badge" aria-hidden="true">
+            <Trophy size={16} strokeWidth={1.75} />
+          </span>
+          Milé míľniky
+        </h2>
       </div>
       <div className="achievement-list">
         {s.achievements.length ? (

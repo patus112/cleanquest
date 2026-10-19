@@ -19,6 +19,7 @@ import {
 } from "../domain/model";
 import { openBackup, type ValidatedBackup } from "../persistence/backup";
 import BackupPreview from "./BackupPreview";
+import { SunnyWindow } from "./art";
 import { generateTasks } from "../data/templates";
 import { storageError } from "../persistence/storage";
 const days = ["Ne", "Po", "Ut", "St", "Št", "Pi", "So"];
@@ -147,8 +148,11 @@ export default function Onboarding({
             Domov, v ktorom sa cítiš dobre. Jedna drobná úloha za druhou,
             vlastným tempom.
           </p>
+          <div className="onboard-art" aria-hidden="true">
+            <SunnyWindow />
+          </div>
           <div className="onboard-orbit">
-            <Home size={70} strokeWidth={1} />
+            <SunnyWindow className="orbit-art" />
             <span>
               <Sparkles size={20} /> Tvoj domov, tvoj rytmus
             </span>
