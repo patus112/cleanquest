@@ -87,7 +87,7 @@ After approval of another release:
 4. For a custom domain or a user/organization root site, set `VITE_BASE_PATH=/`, configure the domain and DNS yourself, and use HTTPS.
 5. Set the approval variable and run the workflow. It publishes only this repository's `dist/`.
 
-Follow [RELEASE.md](docs/RELEASE.md) for the exact settings, approval boundary, safe transfer of the existing local household, and post-deployment checks. Install from Safari using [IPHONE_TESTING.md](docs/IPHONE_TESTING.md).
+Follow [RELEASE.md](docs/RELEASE.md) for the exact settings, approval boundary, safe transfer of the existing local household, and post-deployment checks. Install from Safari using [IPHONE_TESTING.md](docs/IPHONE_TESTING.md). A daily iPhone Shortcuts nudge, without a push service, is described in [IOS_REMINDER.md](docs/IOS_REMINDER.md).
 
 The manifest start URL/scope, Vite assets and service worker all share the configured base. Hash routes survive static-host refreshes. Changing origin/domain does not migrate local data automatically: export before changing and import on the new origin.
 
@@ -96,7 +96,7 @@ Reference: [Vite GitHub Pages deployment](https://vite.dev/guide/static-deploy.h
 ## Known limitations and manual checks
 
 - Playwright WebKit provides engine testing; a physical iPhone Home Screen installation, safe areas in standalone mode, OS storage eviction and app update acceptance still need manual testing. See `docs/QA.md`.
-- Laundry notices run while the app is open. There are no background push notifications or guaranteed OS alarms.
+- Reminders for today's steps, laundry follow-ups and backups appear when the app is opened or returned to the foreground. They can be hidden for that day. There is no push service and no guaranteed OS alarm; an optional iPhone Shortcuts automation is documented in [IOS_REMINDER.md](docs/IOS_REMINDER.md).
 - Special cleaning needs are stored and editable notes; the MVP does not infer allergies/material chemistry from free text. Select safe inventories, supplies and instructions yourself.
 - Monetary settings intentionally cannot exceed €20 + €5 per week. The wallet is a personal tracking ledger, with no payments or purchases.
 - A monthly project is created by selecting a captured problem. There is no paid AI or automatic technical repair advice.

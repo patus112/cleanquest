@@ -13,7 +13,9 @@ test("waiting update offers the existing backup first when data is unbacked", as
     await seed(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await expect
-      .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller))
+      .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), {
+        timeout: 15000,
+      })
       .toBe(true);
     await page.evaluate(
       async (dirtySince) =>
