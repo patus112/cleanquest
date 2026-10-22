@@ -85,7 +85,8 @@ test("hard day is one switch, levels stay readable, and minutes match", async ({
   const tagBox = await rhythm.boundingBox();
   const selectBox = await select.boundingBox();
   expect(tagBox && selectBox).toBeTruthy();
-  expect(tagBox!.y).toBeGreaterThanOrEqual(0);
+  // WebKit in the Playwright image can report a fraction of a pixel above the fold.
+  expect(tagBox!.y).toBeGreaterThanOrEqual(-1);
   expect(selectBox!.y + selectBox!.height).toBeLessThanOrEqual(844);
   if (info.project.name === "mobile-chromium")
     await page.screenshot({

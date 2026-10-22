@@ -19,7 +19,6 @@ jobs:
     # The tag matches @playwright/test in package-lock (1.64.0).
     container:
       image: mcr.microsoft.com/playwright:v1.64.0-noble
-      options: --user 1001
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,6 +34,8 @@ jobs:
       - name: Install Playwright browsers
         timeout-minutes: 10
         run: npx playwright install chromium webkit
+      # Review screenshots are written here. The image does not ship this path.
+      - run: mkdir -p /opt/cursor/artifacts
       - run: npm run e2e
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/cleanquest/' }}
