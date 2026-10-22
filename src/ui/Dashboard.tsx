@@ -23,8 +23,21 @@ import {
   SectionLabel,
   type ScreenProps,
 } from "./components";
-import { dayOf, complete, extraOptions, postpone } from "../domain/commands";
-import { dailySession, completedIds, currentTasks } from "../domain/scheduler";
+import {
+  dayOf,
+  complete,
+  extraOptions,
+  postpone,
+  setRescue,
+  markBasicsOk,
+} from "../domain/commands";
+import {
+  dailySession,
+  completedIds,
+  openTasks,
+  taskIsHeld,
+} from "../domain/scheduler";
+import { buildTierContext, rescueHint, taskTier, tierHint } from "../domain/tiers";
 import { totalXp, levelFor, streak } from "../domain/rewards";
 import { money } from "../domain/model";
 import { shiftDay, weekStart, weekday } from "../domain/calendar";
@@ -62,8 +75,15 @@ export default function Dashboard({
       timeBudget: s.settings[0].dailyBudget,
     },
     doneIds = completedIds(s),
-    done = plan.occurrences.filter((o) => doneIds.has(o.id)).length,
-    total = plan.occurrences.length,
+    rescue = !!s.settings[0].rescue,
+    counted = plan.occurrences.filter(
+      (occurrence) =>
+        doneIds.has(occurrence.id) ||
+        occurrence.lead ||
+        !taskIsHeld(s, day, occurrence.taskId),
+    ),
+    done = counted.filter((o) => doneIds.has(o.id)).length,
+    total = counted.length,
     progress = total ? done / total : 1,
     task = dailySession(s, day, sessionBudget)[0];
   const xp = totalXp(s),
@@ -83,10 +103,17 @@ export default function Dashboard({
     // The extra card is hidden while today's plan still has a task. Scoring the
     // whole library here used to block the done dialog for seconds.
     options =
-      currentTasks(s, day).length || rest ? [] : extraOptions(s, day),
+      openTasks(s, day).length || rest ? [] : extraOptions(s, day),
     [extraIndex, setExtraIndex] = useState(0),
     extra = options[extraIndex % Math.max(1, options.length)];
   const rhythm = useMemo(() => weekRhythm(s, day), [s, day]);
+  const roomDays = task
+    ? (buildTierContext(s, day).rooms.get(task.roomId)?.tier1Days ?? 0)
+    : 0;
+  const roomHasBasics = task
+    ? !!buildTierContext(s, day).rooms.get(task.roomId)?.hasTier1
+    : false;
+  const hint = rescue ? rescueHint : tierHint(roomDays, roomHasBasics);
   const finish = () => {
     if (!task) return;
     void run(
@@ -126,13 +153,22 @@ export default function Dashboard({
         icon={Home}
         art={<SunnyWindow />}
         action={
-          <Button
-            variant="secondary compact"
-            onClick={() => open({ kind: "task" })}
-          >
-            <Plus size={18} />
-            Pridať úlohu
-          </Button>
+          <div className="page-actions">
+            <Button
+              variant="secondary compact"
+              onClick={() => open({ kind: "task" })}
+            >
+              <Plus size={18} />
+              Pridať úlohu
+            </Button>
+            <Button
+              variant="secondary compact"
+              onClick={() => open({ kind: "quick" })}
+            >
+              <Zap size={18} />
+              Rýchla úloha
+            </Button>
+          </div>
         }
       />
       <section className="daily-card">
@@ -248,7 +284,22 @@ export default function Dashboard({
       <section className="next-card">
         <div className="section-heading">
           <SectionLabel icon={Sparkles}>LEN JEDNA VEC</SectionLabel>
+          <Button
+            variant={rescue ? "compact" : "secondary compact"}
+            aria-pressed={rescue}
+            onClick={() =>
+              void run(
+                (state) => setRescue(state, !rescue),
+                rescue
+                  ? "Znova ukážeme aj ďalšie kroky."
+                  : "Dnes len základ. Ostatné počká.",
+              )
+            }
+          >
+            {rescue ? "Záchranný režim" : "Ťažký deň"}
+          </Button>
         </div>
+        {hint && <p className="tier-hint">{hint}</p>}
         {task ? (
           <>
             <span className="room-chip">
@@ -291,6 +342,23 @@ export default function Dashboard({
               >
                 Odložiť na zajtra
               </Button>
+              {taskTier(
+                s.tasks.find((item) => item.id === task.taskId) || {
+                  title: task.title,
+                },
+              ) === 1 && (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    void run(
+                      (state) => markBasicsOk(state, task.roomId),
+                      "V tejto miestnosti je základ v poriadku.",
+                    )
+                  }
+                >
+                  Už je to OK
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => open({ kind: "focus" })}>
                 Začať malý krok
                 <ArrowRight size={18} />
@@ -381,7 +449,7 @@ export default function Dashboard({
           </LinkAction>
         </section>
       </div>
-      {!currentTasks(s, day).length && !rest && (
+      {!openTasks(s, day).length && !rest && (
         <section className="extra-card">
           <div>
             <SectionLabel icon={Zap}>Ešte mám energiu</SectionLabel>

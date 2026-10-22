@@ -48,6 +48,7 @@ const occurrence = z.object({
   date: day,
   status: z.enum(["pending", "skipped"]),
   deferredTo: day.optional(),
+  lead: z.boolean().optional(),
 });
 const schema = z
   .object({
@@ -196,6 +197,7 @@ const schema = z
         eventAt: timestamp.optional(),
         parentCompletionId: id.optional(),
         acceptedLong: z.boolean(),
+        tier: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
       }),
     ),
     completions: z.array(
@@ -222,6 +224,7 @@ const schema = z
         occurrences: z.array(occurrence),
         timeBudget: integer.min(5).max(30),
         lockedAt: timestamp,
+        basicsOk: z.array(id).max(100).optional(),
       }),
     ),
     weeks: z.array(
@@ -332,6 +335,7 @@ const schema = z
           bonusCents: integer.min(0).max(500),
           haptics: z.boolean(),
           specialNeeds: text,
+          rescue: z.boolean().optional(),
         }),
       )
       .max(1),
@@ -363,6 +367,9 @@ export function validateState(input: unknown): State {
     if (!s.floors.some((f) => f.id === r.floorId)) fail();
   for (const o of s.objects)
     if (!s.rooms.some((r) => r.id === o.roomId)) fail();
+  for (const plan of s.dailyPlans)
+    for (const roomId of plan.basicsOk ?? [])
+      if (!s.rooms.some((room) => room.id === roomId)) fail();
   for (const t of s.tasks) {
     if (
       !s.rooms.some((r) => r.id === t.roomId) ||

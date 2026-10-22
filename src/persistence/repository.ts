@@ -1,7 +1,8 @@
 import Dexie from "dexie";
 import { emptyState, tables, type State } from "../domain/model";
 import { validateState } from "./validation";
-import { templates } from "../data/templates";
+import { missingBasicTasks, templates } from "../data/templates";
+import { taskTier } from "../domain/tiers";
 import {
   defaultSafety,
   changedSafety,
@@ -15,7 +16,7 @@ import {
   decodePhoto,
   type StoredPhoto,
 } from "./photos";
-export const DATABASE_VERSION = 5;
+export const DATABASE_VERSION = 6;
 export type UpgradeNotice = "reload" | "blocked";
 const upgradeListeners = new Set<(notice: UpgradeNotice) => void>();
 export function subscribeUpgrade(listener: (notice: UpgradeNotice) => void) {
@@ -258,6 +259,26 @@ export function createDatabase(
           );
         }
         await tx.table("safety").put(meta);
+      });
+  if (version >= 6)
+    db.version(6)
+      .stores(storesFor(6))
+      .upgrade(async (tx) => {
+        await tx
+          .table("tasks")
+          .toCollection()
+          .modify((task) => {
+            if (task.tier === 1 || task.tier === 2 || task.tier === 3) return;
+            task.tier = taskTier(task);
+          });
+        const s = emptyState();
+        for (const table of tables)
+          (s[table] as unknown[]) = await tx.table(table).toArray();
+        // A blocked or half-written database can hold a household row with no
+        // creation date. Inventing reset tasks there would not match a real home.
+        if (!s.households[0]?.createdAt) return;
+        const additions = missingBasicTasks(s);
+        if (additions.length) await tx.table("tasks").bulkAdd(additions);
       });
   // Dexie already closes on versionchange, but with auto-open left on, so the
   // stale bundle can reopen an older schema and surface a version error.

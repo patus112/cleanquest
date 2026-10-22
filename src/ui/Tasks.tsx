@@ -7,6 +7,7 @@ import {
   Play,
   Pencil,
   Plus,
+  Zap,
   RefreshCw,
   Scissors,
   Trash2,
@@ -26,8 +27,20 @@ import {
   replaceOccurrence,
   duplicateTask,
   plannedFor,
+  markBasicsOk,
 } from "../domain/commands";
-import { completedIds, currentTasks, dailySession } from "../domain/scheduler";
+import {
+  completedIds,
+  currentTasks,
+  dailySession,
+  ensurePlans,
+} from "../domain/scheduler";
+import {
+  buildTierContext,
+  rescueHint,
+  taskTier,
+  tierHint,
+} from "../domain/tiers";
 import { shiftDay, recurrenceLabel } from "../domain/calendar";
 import {
   Button,
@@ -232,12 +245,18 @@ export default function Tasks({ s, run, open }: ScreenProps) {
         icon={ListChecks}
         art={<TidyKit />}
         action={
-          <Button
-            onClick={() => open({ kind: "task", roomId: roomId || undefined })}
-          >
-            <Plus size={18} />
-            Pridať úlohu
-          </Button>
+          <div className="page-actions">
+            <Button
+              onClick={() => open({ kind: "task", roomId: roomId || undefined })}
+            >
+              <Plus size={18} />
+              Pridať úlohu
+            </Button>
+            <Button variant="secondary" onClick={() => open({ kind: "quick" })}>
+              <Zap size={18} />
+              Rýchla úloha
+            </Button>
+          </div>
         }
       />
       <div className="tabs" role="tablist" aria-label="Zobrazenie úloh">
@@ -270,6 +289,20 @@ export default function Tasks({ s, run, open }: ScreenProps) {
               vlastným tempom
             </span>
           </div>
+          <p className="tier-hint">
+            {s.settings[0].rescue
+              ? rescueHint
+              : tierHint(
+                  buildTierContext(s, day).rooms.get(
+                    dailySession(s, day, s.settings[0].dailyBudget)[0]
+                      ?.roomId || "",
+                  )?.tier1Days ?? 0,
+                  !!buildTierContext(s, day).rooms.get(
+                    dailySession(s, day, s.settings[0].dailyBudget)[0]
+                      ?.roomId || "",
+                  )?.hasTier1,
+                ) || "Dnes stačí základ. Ostatné môže počkať."}
+          </p>
           {plannedFor(s, day).length || currentTasks(s, day).length ? (
             <div className="task-list">
               {[
@@ -402,6 +435,23 @@ export default function Tasks({ s, run, open }: ScreenProps) {
                           onClick={() => open({ kind: "task", id: o.taskId })}
                         >
                           Upraviť budúce opakovanie
+                        </Button>
+                      )}
+                      {taskTier(
+                        s.tasks.find((item) => item.id === o.taskId) || {
+                          title: o.title,
+                        },
+                      ) === 1 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            void run(
+                              (state) => markBasicsOk(state, o.roomId),
+                              "V tejto miestnosti je základ v poriadku.",
+                            )
+                          }
+                        >
+                          Už je to OK
                         </Button>
                       )}
                     </OverflowMenu>
@@ -580,7 +630,10 @@ export default function Tasks({ s, run, open }: ScreenProps) {
                 variant="secondary"
                 onClick={() =>
                   void run(
-                    (state) => state.tasks.push(...generateTasks(state)),
+                    (state) => {
+                      state.tasks.push(...generateTasks(state));
+                      ensurePlans(state, dayOf(state));
+                    },
                     "Doplnené relevantné úlohy bez duplicít.",
                   )
                 }

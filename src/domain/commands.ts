@@ -8,7 +8,13 @@ import {
   xpFor,
 } from "./model";
 import { nextOccurrence, todayIn, weekStart, shiftDay } from "./calendar";
-import { currentTasks, ensurePlans, pickTasks, snapshot } from "./scheduler";
+import {
+  currentTasks,
+  ensurePlans,
+  pickTasks,
+  snapshot,
+  syncTierSuggestions,
+} from "./scheduler";
 import { balance, reconcile } from "./rewards";
 import { syncObjectPlanLocation } from "./rooms";
 export const dayOf = (s: State, now = new Date()) =>
@@ -22,7 +28,7 @@ export function complete(
   cycleMinutes = 60,
 ) {
   const day = dayOf(s, now);
-  ensurePlans(s, day, now.toISOString());
+  ensurePlans(s, day, now.toISOString(), { sync: false });
   const task = s.tasks.find((t) => t.id === taskId);
   if (
     task?.objectId &&
@@ -178,6 +184,7 @@ export function complete(
       });
     }
   }
+  syncTierSuggestions(s, day);
   reconcile(s, now.toISOString());
 }
 export function undo(s: State, completionId: string) {
@@ -435,3 +442,88 @@ export function replaceBonus(s: State, day: Day) {
 export const tomorrow = (s: State) => shiftDay(dayOf(s), 1);
 export const plannedFor = (s: State, day: Day): Occurrence[] =>
   s.dailyPlans.find((p) => p.date === day)?.occurrences || [];
+
+export function setRescue(s: State, on: boolean, now = new Date()) {
+  if (!s.settings[0]) return;
+  s.settings[0].rescue = on;
+  ensurePlans(s, dayOf(s, now), now.toISOString());
+}
+
+export function markBasicsOk(s: State, roomId: string, now = new Date()) {
+  if (!s.rooms.some((room) => room.id === roomId))
+    throw new Error("Miestnosť sa nenašla.");
+  const day = dayOf(s, now);
+  ensurePlans(s, day, now.toISOString(), { sync: false });
+  const plan = s.dailyPlans.find((item) => item.date === day);
+  if (!plan) return;
+  if (!plan.basicsOk?.includes(roomId))
+    plan.basicsOk = [...(plan.basicsOk ?? []), roomId];
+  syncTierSuggestions(s, day);
+}
+
+export interface QuickTaskInput {
+  title: string;
+  roomId: string;
+  objectId?: string;
+  duration?: number;
+  keep?: boolean;
+}
+
+/** One-off by default. A recurring task is created only when `keep` is set. */
+export function addQuickTask(
+  s: State,
+  input: QuickTaskInput,
+  intent: "now" | "done",
+  now = new Date(),
+) {
+  const title = input.title.trim();
+  if (!title) throw new Error("Napíš, čo chceš spraviť.");
+  const duration = input.duration ?? 5;
+  if (!Number.isInteger(duration) || duration < 1 || duration > 10)
+    throw new Error("Rýchla úloha má trvať 1 až 10 minút.");
+  const room = s.rooms.find((item) => item.id === input.roomId);
+  if (!room) throw new Error("Vyber miestnosť.");
+  if (
+    input.objectId &&
+    !s.objects.some(
+      (object) => object.id === input.objectId && object.roomId === room.id,
+    )
+  )
+    throw new Error("Predmet a miestnosť k sebe nepatria.");
+  const day = dayOf(s, now);
+  ensurePlans(s, day, now.toISOString(), { sync: false });
+  const task: Task = {
+    id: uid(),
+    householdId: s.households[0].id,
+    roomId: room.id,
+    objectId: input.objectId,
+    title,
+    instructions:
+      "Malý krok, ktorý si vybrala teraz. Stačí jedna konkrétna vec.",
+    duration,
+    recurrence: input.keep
+      ? { unit: "week", interval: 1, strategy: "completion", anchor: day }
+      : { unit: "once", interval: 1, strategy: "completion", anchor: day },
+    priority: 2,
+    energy: 1,
+    supplies: [],
+    enabled: true,
+    nextDue: day,
+    acceptedLong: false,
+    tier: 1,
+  };
+  saveTask(s, task);
+  if (intent === "done") {
+    complete(s, task.id, "manual", undefined, now);
+    return { taskId: task.id };
+  }
+  const plan = s.dailyPlans.find((item) => item.date === day);
+  if (!plan) throw new Error("Dnešný plán sa nepodarilo pripraviť.");
+  const occurrence = snapshot(s, task, day);
+  occurrence.lead = true;
+  plan.occurrences = [
+    occurrence,
+    ...plan.occurrences.filter((item) => item.taskId !== task.id),
+  ];
+  return { taskId: task.id, occurrenceId: occurrence.id };
+}

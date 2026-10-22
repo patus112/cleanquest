@@ -8,6 +8,13 @@ import {
   weekday,
   distance,
 } from "./calendar";
+import {
+  buildTierContext,
+  canSuggest,
+  floorRank,
+  taskTier,
+  type TierContext,
+} from "./tiers";
 export function snapshot(s: State, t: Task, day: Day): Occurrence {
   return {
     id: `${t.id}@${day}`,
@@ -31,14 +38,18 @@ export function pickTasks(
   budget: number,
   excluded: string[] = [],
   previousRoom = "",
+  options?: { rescue?: boolean },
 ): Task[] {
   const settings = s.settings[0],
     objectById = new Map(s.objects.map((object) => [object.id, object])),
     roomById = new Map(s.rooms.map((room) => [room.id, room])),
-    skipped = new Set(excluded);
+    skipped = new Set(excluded),
+    tiers = buildTierContext(s, day, tasks),
+    rescue = !!options?.rescue;
   const due = tasks.filter((t) => {
     const object = t.objectId ? objectById.get(t.objectId) : undefined,
-      room = roomById.get(t.roomId);
+      room = roomById.get(t.roomId),
+      gate = tiers.rooms.get(t.roomId);
     return (
       t.enabled &&
       (!t.objectId || object?.accessibility === "safe") &&
@@ -49,14 +60,22 @@ export function pickTasks(
       !!room &&
       room.enabled &&
       featurePresent(room, object?.category || "") &&
-      (!t.eventAt || Date.parse(t.eventAt) <= Date.now())
+      (!t.eventAt || Date.parse(t.eventAt) <= Date.now()) &&
+      !!gate &&
+      canSuggest(gate, taskTier(t), rescue)
     );
   });
   const baseScore = new Map<Task, number>();
   const score = (t: Task) => {
     const cached = baseScore.get(t);
     if (cached !== undefined) return cached;
+    const tier = taskTier(t);
+    const floor = Math.max(0, 12 - Math.min(12, floorRank(s, t.roomId))) * 5;
+    // Tier dominates. Priority beats floor. Floor only breaks a tie.
     const value =
+      (4 - tier) * 2000 +
+      floor +
+      Math.max(0, 10 - Math.min(10, t.duration)) +
       t.priority * 20 +
       Math.min(14, Math.max(0, distance(day, t.nextDue))) * 2 +
       (t.roomId !== previousRoom ? 9 : 0) +
@@ -101,6 +120,7 @@ export function ensurePlans(
   s: State,
   day: Day,
   now = new Date().toISOString(),
+  options?: { sync?: boolean },
 ): void {
   const h = s.households[0];
   if (!h) return;
@@ -178,6 +198,83 @@ export function ensurePlans(
       awarded: false,
       variant: 0,
     });
+  if (options?.sync !== false) syncTierSuggestions(s, day);
+}
+/** Add missing basics, and details only after today's basics were actually handled. */
+export function syncTierSuggestions(s: State, day: Day): void {
+  const settings = s.settings[0];
+  const plan = s.dailyPlans.find((item) => item.date === day);
+  if (!settings || !plan || settings.restDays.includes(weekday(day))) return;
+  const rescue = !!settings.rescue;
+  const ctx = buildTierContext(s, day, s.tasks);
+  const visible = plan.occurrences.filter(
+    (occurrence) =>
+      occurrence.status === "pending" &&
+      (!occurrence.deferredTo || occurrence.deferredTo <= day) &&
+      !completedIds(s).has(occurrence.id) &&
+      !holds(s, day, occurrence, ctx, rescue),
+  );
+  const spent = s.completions
+    .filter(
+      (completion) =>
+        !completion.undone && completion.day === day && completion.type !== "extra",
+    )
+    .reduce((total, completion) => total + completion.duration, 0);
+  // Time already used today stays reserved, so a newly suggested basic cannot
+  // push an agreed task out of the remaining block.
+  let free =
+    plan.timeBudget -
+    spent -
+    visible.reduce((total, occurrence) => total + occurrence.duration, 0);
+  if (free <= 0) return;
+  const start = weekStart(day);
+  const scheduled = new Set(
+    s.dailyPlans
+      .filter((item) => item.date >= start && item.date <= shiftDay(start, 6))
+      .flatMap((item) => item.occurrences.map((occurrence) => occurrence.taskId)),
+  );
+  const picks = pickTasks(
+    s,
+    day,
+    s.tasks,
+    free,
+    [...scheduled],
+    "",
+    { rescue },
+  );
+  for (const task of picks) {
+    if (scheduled.has(task.id) || task.duration > free) continue;
+    const tier = taskTier(task);
+    const room = ctx.rooms.get(task.roomId);
+    if (tier > 1 && (rescue || !room?.openedToday)) continue;
+    const occurrence = snapshot(s, task, day);
+    if (tier === 1) plan.occurrences.unshift(occurrence);
+    else plan.occurrences.push(occurrence);
+    scheduled.add(task.id);
+    free -= task.duration;
+  }
+}
+function holds(
+  s: State,
+  day: Day,
+  occurrence: Occurrence,
+  ctx: TierContext,
+  rescue: boolean,
+): boolean {
+  if (occurrence.lead) return false;
+  const task = s.tasks.find((item) => item.id === occurrence.taskId);
+  if (!task) return false;
+  const room = ctx.rooms.get(task.roomId);
+  if (!room) return false;
+  return !canSuggest(room, taskTier(task), rescue);
+}
+export function taskIsHeld(s: State, day: Day, taskId: string): boolean {
+  const task = s.tasks.find((item) => item.id === taskId);
+  if (!task) return false;
+  const ctx = buildTierContext(s, day, s.tasks);
+  const room = ctx.rooms.get(task.roomId);
+  if (!room) return false;
+  return !canSuggest(room, taskTier(task), !!s.settings[0]?.rescue);
 }
 export const completedIds = (s: State) =>
   new Set(
@@ -204,14 +301,33 @@ export function currentTasks(s: State, day: Day): Occurrence[] {
         (!o.deferredTo || o.deferredTo <= day),
     );
 }
+function compareOccurrence(s: State, a: Occurrence, b: Occurrence): number {
+  if (!!a.lead !== !!b.lead) return a.lead ? -1 : 1;
+  const taskA = s.tasks.find((task) => task.id === a.taskId);
+  const taskB = s.tasks.find((task) => task.id === b.taskId);
+  const tierA = taskA ? taskTier(taskA) : 2;
+  const tierB = taskB ? taskTier(taskB) : 2;
+  if (tierA !== tierB) return tierA - tierB;
+  const floor = floorRank(s, a.roomId) - floorRank(s, b.roomId);
+  if (floor) return floor;
+  const priority = (taskB?.priority ?? 0) - (taskA?.priority ?? 0);
+  if (priority) return priority;
+  return b.date.localeCompare(a.date) || a.id.localeCompare(b.id);
+}
+/** Pending plan tasks that may be suggested today. Held details stay in the snapshot. */
+export function openTasks(s: State, day: Day): Occurrence[] {
+  const rescue = !!s.settings[0]?.rescue;
+  const ctx = buildTierContext(s, day, s.tasks);
+  return currentTasks(s, day)
+    .filter((occurrence) => !holds(s, day, occurrence, ctx, rescue))
+    .sort((a, b) => compareOccurrence(s, a, b));
+}
 export function dailySession(
   s: State,
   day: Day,
   budget: number = s.settings[0].dailyBudget,
 ): Occurrence[] {
-  const ready = currentTasks(s, day).sort(
-    (a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id),
-  );
+  const ready = openTasks(s, day);
   const selected: Occurrence[] = [];
   const selectedTasks = new Set<string>();
   let left = Math.max(
@@ -222,7 +338,8 @@ export function dailySession(
         .reduce((n, c) => n + c.duration, 0),
   );
   for (const o of ready) {
-    if (o.duration <= left && !selectedTasks.has(o.taskId)) {
+    const firstLead = !!o.lead && selected.length === 0;
+    if ((firstLead || o.duration <= left) && !selectedTasks.has(o.taskId)) {
       selectedTasks.add(o.taskId);
       selected.push(o);
       left -= o.duration;

@@ -384,7 +384,32 @@ test("room details, positioned objects and the highlighted upstairs sink persist
     ).violations,
   ).toEqual([]);
   await nav(page, "Domov");
-  await page.getByRole("button", { name: "Začať malý krok" }).click();
+  // Saving the room adds today's floor reset ahead of the sink. Mark that
+  // reset fine for today and set it aside until the sink is the one step.
+  const card = page.locator(".next-card");
+  const seen: string[] = [];
+  for (let step = 0; step < 12; step++) {
+    await expect(card.locator("h2")).toBeVisible();
+    const title = (await card.locator("h2").innerText()).replace(/\s+/g, " ").trim();
+    seen.push(title);
+    if (title === "Umyť umývadlo") break;
+    const ok = card.getByRole("button", { name: "Už je to OK" });
+    if (await ok.isVisible()) {
+      await ok.evaluate((el: HTMLElement) => el.click());
+      await expect(
+        page.getByText("V tejto miestnosti je základ v poriadku."),
+      ).toBeVisible();
+    }
+    const current = (await card.locator("h2").innerText()).replace(/\s+/g, " ").trim();
+    if (current === "Umyť umývadlo") break;
+    const later = card.getByRole("button", { name: "Odložiť na zajtra" });
+    if ((await later.count()) === 0)
+      throw new Error(`Plán sa zastavil pri „${current}“. Videné: ${seen.join(" | ")}`);
+    await later.evaluate((el: HTMLElement) => el.click());
+    await expect(page.getByText("Úloha počká do zajtra.")).toBeVisible();
+  }
+  await expect(card.locator("h2")).toHaveText("Umyť umývadlo");
+  await card.getByRole("button", { name: "Začať malý krok" }).click();
   const dialog = page.getByRole("dialog");
   await expect(
     dialog.getByRole("button", { name: "Mám hotovo" }),

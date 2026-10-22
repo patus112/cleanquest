@@ -6,7 +6,7 @@ import type {
   State,
 } from "./model";
 import { shiftDay, weekStart, weekday } from "./calendar";
-import { completedIds } from "./scheduler";
+import { completedIds, taskIsHeld } from "./scheduler";
 
 const shortDays = ["PO", "UT", "ST", "ŠT", "PI", "SO", "NE"] as const;
 const fullDays = [
@@ -91,6 +91,12 @@ export function weekRhythm(s: State, today: Day): RhythmDay[] {
       const date = effectiveDay(occurrence);
       const isDone = done.has(occurrence.id);
       if (date < today && !isDone) continue;
+      if (
+        !isDone &&
+        !occurrence.lead &&
+        taskIsHeld(s, today, occurrence.taskId)
+      )
+        continue;
       push(date, {
         id: occurrence.id,
         title: occurrence.title,

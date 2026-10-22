@@ -284,6 +284,22 @@ button {
   margin-bottom: 32px;
   gap: 20px;
 }
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.tier-hint {
+  margin: -6px 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.next-card .tier-hint {
+  margin-top: 0;
+}
 .page-head .eyebrow {
   margin-bottom: 12px;
 }
@@ -530,6 +546,7 @@ button {
 }
 .next-card .section-heading {
   width: 100%;
+  flex-wrap: wrap;
   color: var(--accent);
   margin-bottom: 24px;
 }
@@ -1891,15 +1908,22 @@ dialog::backdrop {
     margin-top: 9px;
     max-width: 270px;
   }
-  .page-head > .button {
+  .page-head > .button,
+  .page-actions .button {
     font-size: 0;
     width: 44px;
     min-height: 44px;
     padding: 10px;
     flex-shrink: 0;
+  }
+  .page-head > .button {
     margin-top: 24px;
   }
-  .page-head > .button svg {
+  .page-head > .page-actions {
+    margin-top: 24px;
+  }
+  .page-head > .button svg,
+  .page-actions .button svg {
     width: 20px;
     height: 20px;
   }

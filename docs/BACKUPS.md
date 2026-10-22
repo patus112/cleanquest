@@ -14,7 +14,7 @@ Filename: `cleanquest-backup-YYYY-MM-DD-HHMM.zip`, using the exporting device's 
 
 | Entry                  | Contents                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest.json`        | `format: cleanquest-zip`, format version 1, data schema 2, database version 5, application version, UTC creation time, household ID, current revision, counts, photo descriptors, checksums and manifest hash |
+| `manifest.json`        | `format: cleanquest-zip`, format version 1, data schema 2, database version 6, application version, UTC creation time, household ID, current revision, counts, photo descriptors, checksums and manifest hash |
 | `data.json`            | `format: cleanquest-data`, schema 2, all household tables, reminder preference and safety metadata                                                                                                            |
 | `photos/0001.jpg` etc. | PNG/JPEG/WebP raster bytes; numbered filenames, no executable content or filesystem paths                                                                                                                     |
 

@@ -25,6 +25,8 @@ import {
   canonicalState,
 } from "../src/persistence/repository";
 import { exportBackup } from "../src/persistence/validation";
+import { taskTier } from "../src/domain/tiers";
+import { missingBasicTasks } from "../src/data/templates";
 import {
   storageError,
   shareBackup,
@@ -290,10 +292,13 @@ describe("binary persistence, safe restoration and revisions", () => {
     const db = createDatabase(name);
     databases.push(db);
     const repo = new LocalRepository(db);
-    expect(canonicalState(await repo.read())).toBe(canonicalState(s));
+    const saved = await repo.read();
+    for (const task of s.tasks) task.tier = taskTier(task);
+    for (const task of missingBasicTasks(s)) s.tasks.push(task);
+    expect(canonicalState(saved)).toBe(canonicalState(s));
     expect(await db.table("photos").count()).toBe(2);
     expect((await repo.readSnapshot()).safety.revision).toBe(1);
-    expect(db.verno).toBe(5);
+    expect(db.verno).toBe(6);
   });
   it("preparation does not confirm a saved backup and unchanged reloads do not dirty data", async () => {
     const repo = repository();

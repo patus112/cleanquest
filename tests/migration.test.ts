@@ -8,6 +8,8 @@ import {
 } from "../src/persistence/repository";
 import { tables, uid, type Occurrence, type State } from "../src/domain/model";
 import { photoUrl, type StoredPhoto } from "../src/persistence/photos";
+import { taskTier } from "../src/domain/tiers";
+import { missingBasicTasks } from "../src/data/templates";
 const databases: Dexie[] = [];
 afterEach(async () => {
   for (const db of databases) db.close();
@@ -531,6 +533,8 @@ async function upgradeFrom(version: 1 | 2 | 3 | 4) {
   const current = createDatabase(name);
   databases.push(current);
   const snapshot = await new LocalRepository(current).readSnapshot();
+  for (const task of expected.tasks) task.tier = taskTier(task);
+  for (const task of missingBasicTasks(expected)) expected.tasks.push(task);
   return { current, expected, images, snapshot };
 }
 describe("schema upgrades from every previous version", () => {
@@ -540,7 +544,7 @@ describe("schema upgrades from every previous version", () => {
       const { current, expected, images, snapshot } =
         await upgradeFrom(version);
       const saved = snapshot.state;
-      expect(current.verno).toBe(5);
+      expect(current.verno).toBe(6);
       expect(saved.households[0].timezone).toBe(
         version === 1 ? "Europe/Bratislava" : "Europe/Vienna",
       );
@@ -679,7 +683,7 @@ describe("schema upgrades from every previous version", () => {
     try {
       const newer = new Dexie(name);
       databases.push(newer);
-      newer.version(6).stores({ households: "id" });
+      newer.version(7).stores({ households: "id" });
       await Promise.race([
         newer.open(),
         new Promise((_, reject) =>
@@ -721,7 +725,7 @@ describe("schema upgrades from every previous version", () => {
       expect(current.isOpen()).toBe(false);
       holder.close();
       await opening;
-      expect(current.verno).toBe(5);
+      expect(current.verno).toBe(6);
       expect(await current.table("households").get("h")).toMatchObject({
         name: "Pozdržaný domov",
       });

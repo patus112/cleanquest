@@ -24,6 +24,7 @@ export interface ScreenProps {
 }
 export type ModalType =
   | { kind: "task"; id?: string; roomId?: string }
+  | { kind: "quick" }
   | { kind: "room"; id?: string }
   | { kind: "object"; id?: string; roomId: string }
   | { kind: "layout"; roomId: string }
