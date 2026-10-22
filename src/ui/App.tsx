@@ -385,20 +385,20 @@ export default function App() {
         busy={busy}
       />
     );
-  const level = levelFor(totalXp(s)),
-    props = { s, run, open: setModal, sessionBudget },
-    reminder = (
-      <DailyReminder
-        s={s}
-        safety={safety}
-        page={page}
-        hidden={!!modal}
-        hideBackup={needRefresh}
-        onBackup={() => navigate("profile?section=backup")}
-        onSnoozeWeek={() => snoozeReminder("week")}
-        onSnoozeBackup={() => snoozeReminder("dismiss")}
-      />
-    ),
+  const reminder = (
+    <DailyReminder
+      s={s}
+      safety={safety}
+      page={page}
+      hidden={!!modal}
+      hideBackup={needRefresh}
+      onBackup={() => navigate("profile?section=backup")}
+      onSnoozeWeek={() => snoozeReminder("week")}
+      onSnoozeBackup={() => snoozeReminder("dismiss")}
+    />
+  ),
+    level = levelFor(totalXp(s)),
+    props = { s, run, open: setModal, sessionBudget, reminder },
     celebrate =
       toast.startsWith("Hotovo") ||
       toast.startsWith("Malý krok je hotový") ||
@@ -507,7 +507,6 @@ export default function App() {
               setOfflineReady(false);
             }}
           />
-          {page !== "home" && reminder}
           {!modal && page !== "profile" && storageConstrained(storage) && (
             <div className="notice" role="status">
               <span>
@@ -526,7 +525,6 @@ export default function App() {
               {...props}
               navigate={navigate}
               setSessionBudget={setSessionBudget}
-              reminder={reminder}
             />
           )}
           {page === "tasks" && <Tasks {...props} />}

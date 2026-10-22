@@ -7,6 +7,7 @@ import type {
 } from "../domain/model";
 import { uid, flooringLabels } from "../domain/model";
 import { featurePresent } from "../domain/rooms";
+import { taskTier } from "../domain/tiers";
 // Every row describes an independent surface or small action, never a whole room.
 type Group = [ObjectCategory, RoomCategory[], string, string[]];
 const groups: Group[] = [
@@ -488,6 +489,7 @@ export const templates: TaskTemplate[] = groups.flatMap(
       priority: ["toilet", "sink", "tap", "bin", "hob"].includes(object)
         ? 3
         : 2,
+      tier: taskTier({ title, templateId: `${object}-${i + 1}` }),
       energy: i === 2 ? 2 : 1,
       xp: i === 0 ? 10 : i === 3 ? 10 : 20,
       supplies: supplies.split("; "),
@@ -536,6 +538,7 @@ templates.push(
       strategy: "completion" as const,
     },
     priority: 1,
+    tier: taskTier({ title: title as string, templateId: id as string }),
     energy: 1,
     xp: 10,
     supplies: ["Utierka", "Návod výrobcu"],
@@ -622,10 +625,88 @@ templates.push(
       strategy: "completion" as const,
     },
     priority: 1,
+    tier: taskTier({ title, templateId: id }),
     energy: 1,
     xp: duration <= 3 ? 10 : 20,
     supplies: ["Mäkká utierka", "Pokyny výrobcu"],
   })),
+);
+templates.push(
+  {
+    id: "basic-sink-dishes",
+    title: "Uprať riad z drezu",
+    instructions:
+      "Umy riad, nalož ho do umývačky alebo ho na chvíľu odlož bokom. Drez nechaj prázdny. Nemusí byť vyleštený.",
+    roomTypes: ["kitchen"],
+    objectTypes: ["sink"],
+    duration: 5,
+    recurrence: { unit: "day", interval: 1, strategy: "completion" },
+    priority: 3,
+    tier: 1,
+    energy: 1,
+    xp: 20,
+    supplies: ["Voda", "Hubka alebo umývačka"],
+  },
+  {
+    id: "basic-dishwasher-load",
+    title: "Naložiť riad do umývačky",
+    instructions:
+      "Nalož jednu várku riadu do umývačky. Ak je už plná, stačí ju spustiť podľa návodu. Nič nerozoberaj.",
+    roomTypes: ["kitchen"],
+    objectTypes: ["dishwasher"],
+    duration: 5,
+    recurrence: { unit: "day", interval: 1, strategy: "completion" },
+    priority: 3,
+    tier: 1,
+    energy: 1,
+    xp: 20,
+    supplies: ["Umývačka"],
+  },
+  {
+    id: "basic-floor-clear",
+    title: "Odložiť veci z podlahy",
+    instructions:
+      "Odlož veci, ktoré sú na podlahe a patria inde. Nemusíš vysávať ani umývať podlahu.",
+    roomTypes: [],
+    objectTypes: ["floor"],
+    duration: 3,
+    recurrence: { unit: "week", interval: 1, strategy: "completion" },
+    priority: 2,
+    tier: 1,
+    energy: 1,
+    xp: 10,
+    supplies: [],
+  },
+  {
+    id: "basic-toilet-bowl",
+    title: "Rýchlo očistiť WC misu",
+    instructions:
+      "Kefou rýchlo prejdi WC misu. Sedadlo a drobnosti môžu pokojne počkať.",
+    roomTypes: ["toilet", "bathroom"],
+    objectTypes: ["toilet"],
+    duration: 5,
+    recurrence: { unit: "day", interval: 2, strategy: "completion" },
+    priority: 3,
+    tier: 1,
+    energy: 1,
+    xp: 20,
+    supplies: ["WC kefa"],
+  },
+  {
+    id: "basic-clutter",
+    title: "Odložiť veľké veci, ktoré sú na očiach",
+    instructions:
+      "Odlož veľké veci, ktoré sú na očiach, na ich bežné miesto. Zásuvky a triedenie teraz nerieš.",
+    roomTypes: [],
+    objectTypes: ["cabinet"],
+    duration: 5,
+    recurrence: { unit: "week", interval: 1, strategy: "completion" },
+    priority: 2,
+    tier: 1,
+    energy: 1,
+    xp: 20,
+    supplies: [],
+  },
 );
 export function generateTasks(s: State, objectId?: string): Task[] {
   const day = s.households[0].createdAt.slice(0, 10);
@@ -657,7 +738,9 @@ export function generateTasks(s: State, objectId?: string): Task[] {
       )
         continue;
       generated.push({
-        id: uid(),
+        id: template.id.startsWith("basic-")
+          ? `basic:${template.id}:${object.id}`
+          : uid(),
         householdId: h.id,
         roomId: room.id,
         objectId: object.id,
@@ -670,6 +753,7 @@ export function generateTasks(s: State, objectId?: string): Task[] {
         duration: template.duration,
         recurrence: { ...template.recurrence, anchor: day },
         priority: template.priority,
+        tier: template.tier,
         energy: template.energy,
         supplies:
           object.category === "floor" && room.flooring === "carpet"
@@ -683,4 +767,10 @@ export function generateTasks(s: State, objectId?: string): Task[] {
     }
   }
   return generated;
+}
+/** Tier-1 resets missing for objects that already exist. Safe to run more than once. */
+export function missingBasicTasks(s: State): Task[] {
+  return generateTasks(s).filter((task) =>
+    task.templateId?.startsWith("basic-"),
+  );
 }

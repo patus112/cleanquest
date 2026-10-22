@@ -26,6 +26,7 @@ export default function Profile({
   s,
   run,
   open,
+  reminder,
   replace,
   navigate,
   safety,
@@ -55,6 +56,7 @@ export default function Profile({
         icon={UserRound}
         art={<HomeGlow />}
       />
+      {reminder}
       <section className="card spaced" id="ios-reminder">
         <h2 className="with-badge">
           <span className="section-badge" aria-hidden="true">

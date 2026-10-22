@@ -193,6 +193,7 @@ export interface TaskTemplate {
   xp: number;
   supplies: string[];
   workflow?: "wash";
+  tier: 1 | 2 | 3;
 }
 export interface Task {
   id: string;
@@ -215,6 +216,7 @@ export interface Task {
   eventAt?: string;
   parentCompletionId?: string;
   acceptedLong: boolean;
+  tier?: 1 | 2 | 3;
 }
 export interface Occurrence {
   id: string;
@@ -230,6 +232,8 @@ export interface Occurrence {
   date: Day;
   status: "pending" | "skipped";
   deferredTo?: Day;
+  /** Pinned to the front of today. A quick task the user wants to do now. */
+  lead?: boolean;
 }
 export interface DailyPlan {
   id: string;
@@ -238,6 +242,8 @@ export interface DailyPlan {
   occurrences: Occurrence[];
   timeBudget: number;
   lockedAt: string;
+  /** Rooms whose basics the user marked fine for this day. */
+  basicsOk?: string[];
 }
 export interface WeeklyPlan {
   id: string;
@@ -368,6 +374,8 @@ export interface Settings {
   bonusCents: number;
   haptics: boolean;
   specialNeeds: string;
+  /** Hard day: suggest only tier-1 basics. */
+  rescue?: boolean;
 }
 export interface State {
   profiles: Profile[];

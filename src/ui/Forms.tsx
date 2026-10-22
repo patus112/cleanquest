@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Plus, Check } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import { Plus, Check, Zap } from "lucide-react";
 import {
   type Task,
   type Room,
@@ -23,8 +23,10 @@ import {
   splitTask,
   redeem,
   propose,
+  addQuickTask,
 } from "../domain/commands";
 import { generateTasks } from "../data/templates";
+import { ensurePlans } from "../domain/scheduler";
 import {
   Button,
   Dialog,
@@ -156,6 +158,8 @@ export default function Forms({
       </Dialog>
     );
   }
+  if (modal.kind === "quick")
+    return <QuickForm s={s} run={run} open={open} />;
   if (modal.kind === "task")
     return <TaskForm {...{ s, run, open }} modal={modal} />;
   if (modal.kind === "room") {
@@ -204,6 +208,7 @@ export default function Forms({
             await done((state) => {
               saveRoom(state, value);
               state.tasks.push(...generateTasks(state));
+              ensurePlans(state, dayOf(state));
             });
           })}
         >
@@ -433,7 +438,10 @@ export default function Forms({
                   id: uid(),
                   name: `${value.name} ${n + 1}`,
                 });
-              if (f.has("generate")) state.tasks.push(...generateTasks(state));
+              if (f.has("generate")) {
+                state.tasks.push(...generateTasks(state));
+                ensurePlans(state, dayOf(state));
+              }
             });
           })}
         >
@@ -995,6 +1003,132 @@ export default function Forms({
       </Dialog>
     );
   return null;
+}
+function QuickForm({ s, run, open }: ScreenProps) {
+  const [roomId, setRoomId] = useState(s.rooms[0]?.id || "");
+  const [error, setError] = useState("");
+  const [keep, setKeep] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const go = async (intent: "now" | "done") => {
+    const form = formRef.current;
+    if (!form?.reportValidity()) return;
+    const data = new FormData(form);
+    const title = str(data, "title");
+    const raw = data.get("duration");
+    const minutes = raw === "" || raw == null ? 5 : Number(raw);
+    const objectId = str(data, "objectId") || undefined;
+    setError("");
+    const ok = await run(
+      (state) => {
+        addQuickTask(
+          state,
+          { title, roomId, objectId, duration: minutes, keep },
+          intent,
+        );
+      },
+      intent === "now"
+        ? "Je to prvé v dnešnom pláne."
+        : "Zapísané. Malý krok sa počíta.",
+    );
+    if (!ok) {
+      setError("Nepodarilo sa to zapísať. Skús kratší čas alebo inú miestnosť.");
+      return;
+    }
+    if (intent === "now") open({ kind: "focus" });
+    else open(null);
+  };
+  return (
+    <Dialog title="Rýchla úloha" onClose={() => open(null)}>
+      <form
+        ref={formRef}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void go("now");
+        }}
+      >
+        <p>
+          Niečo, čo chceš spraviť hneď, alebo čo si už medzitým stihla. Bez
+          opakovania, kým si ho sama nezapneš.
+        </p>
+        <Field label="Názov">
+          <input
+            name="title"
+            required
+            maxLength={250}
+            placeholder="Zložiť deku z pohovky"
+          />
+        </Field>
+        <div className="form-grid">
+          <Field label="Miestnosť">
+            <select
+              value={roomId}
+              onChange={(event) => setRoomId(event.target.value)}
+              required
+            >
+              {s.rooms.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Predmet (voliteľné)">
+            <select key={roomId} name="objectId" defaultValue="">
+              <option value="">Bez predmetu</option>
+              {s.objects
+                .filter((object) => object.roomId === roomId)
+                .map((object) => (
+                  <option key={object.id} value={object.id}>
+                    {object.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          <Field
+            label="Trvanie (minúty)"
+            hint="Keď pole necháš prázdne, počítame 5 minút."
+          >
+            <input
+              name="duration"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="10"
+              defaultValue={5}
+            />
+          </Field>
+        </div>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={keep}
+            onChange={(event) => setKeep(event.target.checked)}
+          />
+          Nechať aj ako opakovanú úlohu
+        </label>
+        <p>Bez zaškrtnutia je to len jednorazový krok.</p>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="actions">
+          <Button type="submit" disabled={!roomId}>
+            <Zap size={18} />
+            Idem to spraviť teraz
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={!roomId}
+            onClick={() => void go("done")}
+          >
+            <Check size={18} />
+            Už mám hotové
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
 }
 function TaskForm({
   s,

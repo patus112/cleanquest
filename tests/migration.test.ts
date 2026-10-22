@@ -8,6 +8,8 @@ import {
 } from "../src/persistence/repository";
 import { tables, uid, type Occurrence, type State } from "../src/domain/model";
 import { photoUrl, type StoredPhoto } from "../src/persistence/photos";
+import { taskTier } from "../src/domain/tiers";
+import { missingBasicTasks } from "../src/data/templates";
 const databases: Dexie[] = [];
 afterEach(async () => {
   for (const db of databases) db.close();
@@ -531,6 +533,8 @@ async function upgradeFrom(version: 1 | 2 | 3 | 4) {
   const current = createDatabase(name);
   databases.push(current);
   const snapshot = await new LocalRepository(current).readSnapshot();
+  for (const task of expected.tasks) task.tier = taskTier(task);
+  for (const task of missingBasicTasks(expected)) expected.tasks.push(task);
   return { current, expected, images, snapshot };
 }
 describe("schema upgrades from every previous version", () => {
@@ -540,7 +544,7 @@ describe("schema upgrades from every previous version", () => {
       const { current, expected, images, snapshot } =
         await upgradeFrom(version);
       const saved = snapshot.state;
-      expect(current.verno).toBe(5);
+      expect(current.verno).toBe(6);
       expect(saved.households[0].timezone).toBe(
         version === 1 ? "Europe/Bratislava" : "Europe/Vienna",
       );
@@ -664,6 +668,107 @@ describe("schema upgrades from every previous version", () => {
       });
     },
   );
+  it("backfills sink dishes only onto a kitchen sink", async () => {
+    const name = `sinks-${uid()}`;
+    const legacy = createDatabase(name, 5);
+    databases.push(legacy);
+    await legacy.open();
+    const householdId = "home-sinks";
+    await legacy.table("households").put({
+      id: householdId,
+      name: "Byt",
+      type: "apartment",
+      timezone: "Europe/Bratislava",
+      createdAt: "2026-04-01T12:00:00.000Z",
+    });
+    for (const [order, room] of (
+      [
+        ["room-living", "Obývačka", "living"],
+        ["room-kitchen", "Kuchyňa", "kitchen"],
+        ["room-bath", "Kúpeľňa", "bathroom"],
+      ] as const
+    ).entries())
+      await legacy.table("rooms").put({
+        id: room[0],
+        householdId,
+        floorId: "floor-1",
+        name: room[1],
+        category: room[2],
+        flooring: "tile",
+        order,
+        enabled: true,
+        zones: [],
+      });
+    for (const [id, roomId] of [
+      ["sink-living", "room-living"],
+      ["sink-kitchen", "room-kitchen"],
+      ["sink-bath", "room-bath"],
+    ] as const)
+      await legacy.table("objects").put({
+        id,
+        householdId,
+        roomId,
+        name: "Drez",
+        category: "sink",
+        quantity: 1,
+        dimensions: "",
+        surface: "",
+        accessibility: "safe",
+        notes: "",
+      });
+    await legacy.table("tasks").put({
+      id: "task-kept",
+      householdId,
+      roomId: "room-living",
+      title: "Utrieť jednu poličku",
+      instructions: "Iba predok.",
+      duration: 3,
+      recurrence: { unit: "week", interval: 1, strategy: "completion" },
+      priority: 1,
+      energy: 1,
+      supplies: [],
+      enabled: true,
+      nextDue: "2026-10-05",
+      acceptedLong: false,
+    });
+    await legacy.table("completions").put({
+      id: "completion-kept",
+      householdId,
+      taskId: "task-kept",
+      occurrenceId: "manual:task-kept@2026-10-04",
+      title: "Utrieť jednu poličku",
+      roomName: "Obývačka",
+      duration: 3,
+      completedAt: "2026-10-04T12:00:00.000Z",
+      day: "2026-10-04",
+      type: "manual",
+      xp: 10,
+      previousDue: "2026-10-04",
+      nextDue: "2026-10-11",
+      undone: false,
+    });
+    legacy.close();
+    const current = createDatabase(name);
+    databases.push(current);
+    const saved = (await new LocalRepository(current).readSnapshot()).state;
+    const dishes = saved.tasks.filter(
+      (task) => task.templateId === "basic-sink-dishes",
+    );
+    expect(dishes.map((task) => [task.roomId, task.objectId])).toEqual([
+      ["room-kitchen", "sink-kitchen"],
+    ]);
+    expect(
+      saved.tasks.some(
+        (task) =>
+          task.templateId === "basic-sink-dishes" &&
+          task.roomId !== "room-kitchen",
+      ),
+    ).toBe(false);
+    expect(saved.tasks.some((task) => task.id === "task-kept")).toBe(true);
+    expect(
+      saved.completions.find((item) => item.id === "completion-kept")?.undone,
+    ).toBe(false);
+  });
   it("closes an older open tab and does not let it reopen the previous schema", async () => {
     const name = `tabs-${uid()}`;
     const older = createDatabase(name);
@@ -679,7 +784,7 @@ describe("schema upgrades from every previous version", () => {
     try {
       const newer = new Dexie(name);
       databases.push(newer);
-      newer.version(6).stores({ households: "id" });
+      newer.version(7).stores({ households: "id" });
       await Promise.race([
         newer.open(),
         new Promise((_, reject) =>
@@ -721,7 +826,7 @@ describe("schema upgrades from every previous version", () => {
       expect(current.isOpen()).toBe(false);
       holder.close();
       await opening;
-      expect(current.verno).toBe(5);
+      expect(current.verno).toBe(6);
       expect(await current.table("households").get("h")).toMatchObject({
         name: "Pozdržaný domov",
       });
