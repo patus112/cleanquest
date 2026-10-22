@@ -10,8 +10,13 @@ concurrency:
   cancel-in-progress: true
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # OS libraries and the Chromium/WebKit builds for this Playwright release
+    # live in the image, so the job does not apt-get from the Ubuntu mirror.
+    # The tag matches @playwright/test in package-lock (1.64.0).
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
     steps:
       - uses: actions/checkout@v7
         with:
@@ -24,7 +29,11 @@ jobs:
       - run: npm run check
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/cleanquest/' }}
-      - run: npx playwright install --with-deps chromium webkit
+      - name: Install Playwright browsers
+        timeout-minutes: 10
+        run: npx playwright install chromium webkit
+      # Review screenshots are written here. The image does not ship this path.
+      - run: mkdir -p /opt/cursor/artifacts
       - run: npm run e2e
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/cleanquest/' }}
@@ -49,7 +58,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/configure-pages@v5
