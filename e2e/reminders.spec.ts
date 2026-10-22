@@ -30,7 +30,7 @@ async function ageSafety(page: Page) {
 
 test("daily reminders stay calm, dismiss for the day and link to laundry", async ({
   page,
-}) => {
+}, info) => {
   const state = fixture();
   state.tasks.push(
     makeTask(state, {
@@ -68,6 +68,32 @@ test("daily reminders stay calm, dismiss for the day and link to laundry", async
         .analyze()
     ).violations,
   ).toEqual([]);
+  const belowHeading = async (heading: string) => {
+    const title = page.getByRole("heading", { name: heading });
+    await expect(title).toBeVisible();
+    const reminderBox = await reminder.boundingBox();
+    const titleBox = await title.boundingBox();
+    expect(reminderBox && titleBox).toBeTruthy();
+    expect(reminderBox!.y).toBeGreaterThan(titleBox!.y + titleBox!.height - 1);
+  };
+  await nav(page, "Úlohy");
+  await belowHeading("Tvoj domov v rytme.");
+  await expect(reminder.getByRole("button", { name: "Dnes nie" })).toBeVisible();
+  if (info.project.name === "mobile-chromium") {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: "/opt/cursor/artifacts/tasks-slim-reminder-viewport.png",
+    });
+  }
+  await nav(page, "Odmeny");
+  await belowHeading("Zaslúžené malé radosti.");
+  if (info.project.name === "mobile-chromium") {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: "/opt/cursor/artifacts/rewards-slim-reminder-viewport.png",
+    });
+  }
+  await nav(page, "Domov");
   await page.getByRole("button", { name: "Začať malý krok" }).click();
   await expect(reminder).toHaveCount(0);
   await page.getByRole("button", { name: "Skončiť", exact: true }).click();

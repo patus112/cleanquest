@@ -14,7 +14,7 @@ import { dayOf, createMega, propose } from "../domain/commands";
 import { money, uid } from "../domain/model";
 import { SunnyWindow } from "./art";
 import { reconcile } from "../domain/rewards";
-export default function Ideas({ s, run, open }: ScreenProps) {
+export default function Ideas({ s, run, open, reminder }: ScreenProps) {
   const [history, setHistory] = useState(false),
     day = dayOf(s),
     mega = s.megas.find((m) => m.month === day.slice(0, 7)),
@@ -36,6 +36,7 @@ export default function Ideas({ s, run, open }: ScreenProps) {
           </Button>
         }
       />
+      {reminder}
       {mega ? (
         <section className="card mega-card">
           <div className="section-heading">

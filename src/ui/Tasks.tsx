@@ -70,7 +70,7 @@ const tabs = [
   ["laundry", "Pranie"],
   ["history", "História"],
 ];
-export default function Tasks({ s, run, open }: ScreenProps) {
+export default function Tasks({ s, run, open, reminder }: ScreenProps) {
   const [tab, setTab] = useState(tasksTabFromHash),
     [roomId, setRoomId] = useState(""),
     [search, setSearch] = useState(""),
@@ -259,6 +259,7 @@ export default function Tasks({ s, run, open }: ScreenProps) {
           </div>
         }
       />
+      {reminder}
       <div className="tabs" role="tablist" aria-label="Zobrazenie úloh">
         {tabs.map(([id, label]) => (
           <button

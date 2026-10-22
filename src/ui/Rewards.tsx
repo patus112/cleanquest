@@ -25,7 +25,7 @@ import { dayOf, replaceBonus } from "../domain/commands";
 import { weekStart } from "../domain/calendar";
 import { money } from "../domain/model";
 import { PlantSprig } from "./art";
-export default function Rewards({ s, run, open }: ScreenProps) {
+export default function Rewards({ s, run, open, reminder }: ScreenProps) {
   const day = dayOf(s),
     xp = totalXp(s),
     level = levelFor(xp),
@@ -43,6 +43,7 @@ export default function Rewards({ s, run, open }: ScreenProps) {
         icon={Gift}
         art={<PlantSprig />}
       />
+      {reminder}
       <div className="reward-grid">
         <section className="card level-card">
           <div className="icon-tile">

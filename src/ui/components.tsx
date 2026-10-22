@@ -21,6 +21,7 @@ export interface ScreenProps {
   s: State;
   run: (recipe: (s: State) => void, message?: string) => Promise<boolean>;
   open: (modal: ModalType) => void;
+  reminder?: ReactNode;
 }
 export type ModalType =
   | { kind: "task"; id?: string; roomId?: string }

@@ -1462,19 +1462,31 @@ dialog::backdrop {
   font-size: 12px;
   margin-bottom: 20px;
 }
-.daily-reminder {
-  align-items: stretch;
-  flex-direction: column;
-  gap: 12px;
+.notice.daily-reminder {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  padding: 8px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.home-screen > .daily-reminder {
+  margin: 0;
 }
 .daily-reminder-title {
+  margin: 0 0 2px;
+  color: var(--gold);
+  font-size: 11px;
   font-weight: 650;
-  margin-bottom: 8px;
+  letter-spacing: 0.3px;
 }
 .daily-reminder ul {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3291,27 +3303,6 @@ h3.with-badge {
   letter-spacing: 0;
   color: inherit;
 }
-.home-screen > .daily-reminder {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin: 0;
-  padding: 8px 14px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-}
-.home-screen > .daily-reminder .daily-reminder-title {
-  margin: 0 0 2px;
-  color: var(--gold);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.3px;
-}
-.home-screen > .daily-reminder ul {
-  gap: 0;
-}
 @media (min-width: 801px) {
   .main-content:has(.home-screen) {
     padding-top: 28px;
@@ -3338,10 +3329,12 @@ h3.with-badge {
   }
 }
 @media (max-width: 600px) {
-  .home-screen > .daily-reminder {
-    order: 4;
+  .notice.daily-reminder {
     flex-direction: column;
     align-items: stretch;
+  }
+  .home-screen > .daily-reminder {
+    order: 4;
   }
   .home-screen > .session-selector {
     order: 5;
