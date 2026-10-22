@@ -11,11 +11,11 @@ import { shiftDay } from "../domain/calendar";
 import { dailySession } from "../domain/scheduler";
 import { TaskLocation } from "./RoomVisual";
 import { SunnyWindow } from "./art";
-export default function Focus({ s, run, open, sessionBudget }: ScreenProps) {
+export default function Focus({ s, run, open }: ScreenProps) {
   const [feedback, setFeedback] = useState(false),
     [cycle, setCycle] = useState(60);
   const day = dayOf(s),
-    task = dailySession(s, day, sessionBudget)[0];
+    task = dailySession(s, day)[0];
   return (
     <Dialog title="Len jedna vec" onClose={() => open(null)}>
       {feedback ? (

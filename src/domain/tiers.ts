@@ -174,6 +174,25 @@ export function tierHint(days: number, hasBasics: boolean): string {
 export const rescueHint =
   "Ťažký deň. Dnes len základ, ostatné v pokoji počká.";
 
+export const CLEANING_LEVELS = ["Základ", "Čisté", "Detaily"] as const;
+
+export type CleaningLevelState = "done" | "current" | "later";
+
+/** Where today is on the ladder. Ťažký deň stays on Základ. */
+export function cleaningProgress(
+  rescue: boolean,
+  suggestedTier: 1 | 2 | 3 | null,
+): { name: (typeof CLEANING_LEVELS)[number]; state: CleaningLevelState }[] {
+  const active = rescue || suggestedTier == null ? 1 : suggestedTier;
+  return CLEANING_LEVELS.map((name, index) => {
+    const level = index + 1;
+    return {
+      name,
+      state: level < active ? "done" : level === active ? "current" : "later",
+    };
+  });
+}
+
 export interface RoomTierState {
   tier1Days: number;
   tier2Days: number;
@@ -185,6 +204,8 @@ export interface RoomTierState {
   hasFrequentTier2: boolean;
   basicsOpen: boolean;
   openedToday: boolean;
+  /** Základ máme for today. Remaining basics in this room step aside. */
+  markedOk: boolean;
 }
 
 export interface TierContext {
@@ -221,7 +242,7 @@ export function canSuggest(
   rescue: boolean,
 ): boolean {
   if (rescue && tier > 1) return false;
-  if (tier <= 1) return true;
+  if (tier <= 1) return !room.markedOk;
   if (room.basicsOpen) return false;
   if (!tierReady(room, 1)) return false;
   if (tier === 3 && !tierReady(room, 2)) return false;
@@ -327,6 +348,7 @@ export function buildTierContext(
       hasFrequentTier2,
       basicsOpen: hasTier1 && openBasic && !basicsOk.has(roomId),
       openedToday: didBasic || basicsOk.has(roomId),
+      markedOk: basicsOk.has(roomId),
     });
   }
   return { rooms };

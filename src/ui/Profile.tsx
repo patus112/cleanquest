@@ -15,6 +15,7 @@ import {
   type ScreenProps,
 } from "./components";
 import { type Settings, uid, emptyState } from "../domain/model";
+import { applyDailyBudget } from "../domain/commands";
 import { HouseholdMap } from "./RoomVisual";
 import BackupPanel from "./BackupPanel";
 import type { LocalSafety } from "../domain/localSafety";
@@ -139,9 +140,6 @@ export default function Profile({
               const f = new FormData(e.currentTarget);
               void run((state) => {
                 const set = state.settings[0];
-                set.dailyBudget = Number(
-                  f.get("budget"),
-                ) as Settings["dailyBudget"];
                 set.energy = Number(f.get("energy")) as Settings["energy"];
                 set.intensity =
                   set.energy === 1
@@ -151,6 +149,7 @@ export default function Profile({
                       : "balanced";
                 set.restDays = f.getAll("rest").map(Number);
                 set.specialNeeds = String(f.get("specialNeeds"));
+                applyDailyBudget(state, Number(f.get("budget")));
               }, "Nastavenie je uložené. Dohodnutý týždeň zostáva zachovaný.");
             }}
           >
@@ -191,8 +190,8 @@ export default function Profile({
               />
             </Field>
             <small>
-              Zmeny plánu platia od ďalšieho týždňa. Dnešný krátky blok môžeš
-              zvoliť na domovskej obrazovke.
+              Denný čas je jeden údaj. Platí dnes aj ďalej. Dohodnutý týždeň
+              sa neprepisuje.
             </small>
             <Button type="submit">Uložiť tempo</Button>
           </form>

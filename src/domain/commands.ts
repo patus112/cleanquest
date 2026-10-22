@@ -443,6 +443,19 @@ export const tomorrow = (s: State) => shiftDay(dayOf(s), 1);
 export const plannedFor = (s: State, day: Day): Occurrence[] =>
   s.dailyPlans.find((p) => p.date === day)?.occurrences || [];
 
+const DAILY_MINUTES = [5, 10, 15, 20, 30] as const;
+
+/** One saved daily length. Past days stay as they were; the locked week is not rebuilt. */
+export function applyDailyBudget(s: State, minutes: number, now = new Date()) {
+  if (
+    !s.settings[0] ||
+    !DAILY_MINUTES.includes(minutes as (typeof DAILY_MINUTES)[number])
+  )
+    throw new Error("Denný čas má byť 5, 10, 15, 20 alebo 30 minút.");
+  s.settings[0].dailyBudget = minutes as (typeof DAILY_MINUTES)[number];
+  ensurePlans(s, dayOf(s, now), now.toISOString());
+}
+
 export function setRescue(s: State, on: boolean, now = new Date()) {
   if (!s.settings[0]) return;
   s.settings[0].rescue = on;

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { fixture, day, makeTask, now } from "./fixture";
-import { pickTasks, dailySession, ensurePlans } from "../src/domain/scheduler";
-import { complete, markBasicsOk, setRescue } from "../src/domain/commands";
+import { pickTasks, dailySession, ensurePlans, openTasks } from "../src/domain/scheduler";
+import { applyDailyBudget, complete, markBasicsOk, setRescue } from "../src/domain/commands";
 import { missingBasicTasks, templates } from "../src/data/templates";
 import {
+  cleaningProgress,
   taskTier,
   tierHint,
   TIER_UNLOCK_DAYS,
@@ -365,5 +366,63 @@ describe("cleaning tiers", () => {
         .find((plan) => plan.date === day)!
         .occurrences.some((item) => item.title === "Očistiť zátku umývadla"),
     ).toBe(false);
+  });
+
+  it("lights the current cleaning level and keeps a hard day on Základ", () => {
+    expect(cleaningProgress(false, 1).map((step) => step.state)).toEqual([
+      "current",
+      "later",
+      "later",
+    ]);
+    expect(
+      cleaningProgress(false, 2).map((step) => [step.name, step.state]),
+    ).toEqual([
+      ["Základ", "done"],
+      ["Čisté", "current"],
+      ["Detaily", "later"],
+    ]);
+    expect(cleaningProgress(false, 3).map((step) => step.state)).toEqual([
+      "done",
+      "done",
+      "current",
+    ]);
+    expect(cleaningProgress(true, 3).map((step) => step.state)).toEqual([
+      "current",
+      "later",
+      "later",
+    ]);
+  });
+
+  it("Základ máme skips that room's basic and does not turn Ťažký deň off", () => {
+    const s = home();
+    task(s, s.rooms[0].id, "Uprať riad z drezu");
+    task(s, "room-up", "Rýchlo očistiť WC misu");
+    task(s, s.rooms[0].id, "Utrieť jednu batériu", often);
+    ensurePlans(s, day, now.toISOString());
+    setRescue(s, true, now);
+    markBasicsOk(s, s.rooms[0].id, now);
+    expect(s.settings[0].rescue).toBe(true);
+    const titles = openTasks(s, day).map((item) => item.title);
+    expect(titles).not.toContain("Uprať riad z drezu");
+    expect(titles).toContain("Rýchlo očistiť WC misu");
+    expect(titles).not.toContain("Utrieť jednu batériu");
+  });
+
+  it("uses the saved daily minutes for today onward and leaves yesterday", () => {
+    const s = fixture();
+    const past = shiftDay(day, -1);
+    s.dailyPlans.push({
+      ...s.dailyPlans[0],
+      id: "past-plan",
+      date: past,
+      occurrences: [],
+      timeBudget: 10,
+    });
+    const required = s.weeks[0].required.map((item) => item.id);
+    applyDailyBudget(s, 30, now);
+    expect(s.settings[0].dailyBudget).toBe(30);
+    expect(s.dailyPlans.find((plan) => plan.date === day)?.timeBudget).toBe(30);
+    expect(s.dailyPlans.find((plan) => plan.date === past)?.timeBudget).toBe(10);
+    expect(s.weeks[0].required.map((item) => item.id)).toEqual(required);
   });
 });

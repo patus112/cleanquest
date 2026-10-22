@@ -393,12 +393,10 @@ test("room details, positioned objects and the highlighted upstairs sink persist
     const title = (await card.locator("h2").innerText()).replace(/\s+/g, " ").trim();
     seen.push(title);
     if (title === "Umyť umývadlo") break;
-    const ok = card.getByRole("button", { name: "Už je to OK" });
+    const ok = card.getByRole("button", { name: "Základ máme" });
     if (await ok.isVisible()) {
       await ok.evaluate((el: HTMLElement) => el.click());
-      await expect(
-        page.getByText("V tejto miestnosti je základ v poriadku."),
-      ).toBeVisible();
+      await expect(page.getByText("Základ máme. Ťažký deň sa nemení.")).toBeVisible();
     }
     const current = (await card.locator("h2").innerText()).replace(/\s+/g, " ").trim();
     if (current === "Umyť umývadlo") break;

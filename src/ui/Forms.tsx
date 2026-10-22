@@ -54,7 +54,6 @@ export default function Forms({
   run,
   open,
   modal,
-  sessionBudget,
 }: { modal: ModalType } & ScreenProps) {
   const [error, setError] = useState("");
   if (!modal) return null;
@@ -89,7 +88,7 @@ export default function Forms({
     </>
   );
   if (modal.kind === "focus")
-    return <Focus s={s} run={run} open={open} sessionBudget={sessionBudget} />;
+    return <Focus s={s} run={run} open={open} />;
   if (modal.kind === "layout")
     return (
       <RoomLayoutEditor s={s} run={run} open={open} roomId={modal.roomId} />

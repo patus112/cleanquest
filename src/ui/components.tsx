@@ -17,7 +17,6 @@ import type { State } from "../domain/model";
 import { optimizePhoto } from "../persistence/photos";
 import { TidyKit } from "./art";
 export interface ScreenProps {
-  sessionBudget?: number;
   s: State;
   run: (recipe: (s: State) => void, message?: string) => Promise<boolean>;
   open: (modal: ModalType) => void;

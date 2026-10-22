@@ -262,14 +262,58 @@ describe("Slovak user journeys", () => {
         open={open}
         run={async () => true}
         navigate={() => {}}
-        setSessionBudget={() => {}}
       />,
     );
     expect(screen.getByText("LEN JEDNA VEC")).toBeVisible();
     expect(screen.getByText(/^0 DA ⚡$/)).toBeVisible();
     expect(screen.getByText(/Dnes 0 z /)).toBeVisible();
+    expect(screen.getByText("10 min denne")).toBeVisible();
+    expect(screen.getByLabelText("Dnešný časový blok")).toHaveValue("10");
     fireEvent.click(screen.getByRole("button", { name: /Začať malý krok/ }));
     expect(open).toHaveBeenCalledWith({ kind: "focus" });
+  });
+  it("keeps the hard-day label and syncs the daily minutes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const s = fixture();
+    const run = vi.fn(async (recipe: (state: State) => void) => {
+      recipe(s);
+      return true;
+    });
+    const view = render(
+      <Dashboard s={s} open={vi.fn()} run={run} navigate={vi.fn()} />,
+    );
+    const hardDay = screen.getByRole("switch", { name: /Ťažký deň/ });
+    expect(hardDay).toHaveAttribute("aria-checked", "false");
+    expect(hardDay).toHaveTextContent("nie");
+    expect(screen.getByText("Čisté")).toHaveAttribute("aria-current", "step");
+    await act(async () => {
+      fireEvent.click(hardDay);
+    });
+    view.rerender(
+      <Dashboard s={s} open={vi.fn()} run={run} navigate={vi.fn()} />,
+    );
+    const on = screen.getByRole("switch", { name: /Ťažký deň/ });
+    expect(s.settings[0].rescue).toBe(true);
+    expect(on).toHaveAttribute("aria-checked", "true");
+    expect(on).toHaveTextContent("Ťažký deň");
+    expect(on).toHaveTextContent("áno");
+    expect(screen.getByText("Základ")).toHaveAttribute("aria-current", "step");
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Dnešný časový blok"), {
+        target: { value: "30" },
+      });
+    });
+    view.rerender(
+      <Dashboard s={s} open={vi.fn()} run={run} navigate={vi.fn()} />,
+    );
+    expect(s.settings[0].dailyBudget).toBe(30);
+    expect(s.dailyPlans.find((plan) => plan.date === "2026-10-05")?.timeBudget).toBe(
+      30,
+    );
+    expect(screen.getByText("30 min denne")).toBeVisible();
+    expect(screen.getByLabelText("Dnešný časový blok")).toHaveValue("30");
+    expect(s.settings[0].rescue).toBe(true);
   });
   it("completes today's offered task in one tap", async () => {
     vi.useFakeTimers();
@@ -288,8 +332,6 @@ describe("Slovak user journeys", () => {
         open={vi.fn()}
         run={run}
         navigate={vi.fn()}
-        sessionBudget={10}
-        setSessionBudget={() => {}}
       />,
     );
     await act(async () => {
@@ -313,8 +355,6 @@ describe("Slovak user journeys", () => {
         open={vi.fn()}
         run={run}
         navigate={vi.fn()}
-        sessionBudget={10}
-        setSessionBudget={() => {}}
       />,
     );
     const title = screen.getByRole("heading", { level: 2, name: /polic/ });
@@ -406,6 +446,7 @@ describe("Slovak user journeys", () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
     const s = fixture();
+    s.settings[0].dailyBudget = 5;
     render(
       <Forms
         s={s}
@@ -414,7 +455,6 @@ describe("Slovak user journeys", () => {
           recipe(s);
           return true;
         }}
-        sessionBudget={5}
         modal={{ kind: "focus" }}
       />,
     );
