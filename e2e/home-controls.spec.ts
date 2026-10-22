@@ -5,6 +5,11 @@ import { ensurePlans } from "../src/domain/scheduler";
 
 function home() {
   const s = fixture(false);
+  // The shared fixture is a living room. This card is a kitchen basic, so the
+  // screenshot room has to be a kitchen too.
+  const kitchen = s.rooms[0];
+  kitchen.name = "Kuchyňa";
+  kitchen.category = "kitchen";
   s.settings[0].dailyBudget = 15;
   s.tasks = [
     makeTask(s, {
@@ -37,6 +42,7 @@ test("hard day is one switch, levels stay readable, and minutes match", async ({
   await expect(hardDay).toContainText("nie");
   await expect(levels.getByText("Základ")).toHaveAttribute("aria-current", "step");
   await expect(page.getByRole("button", { name: "Základ máme" })).toBeVisible();
+  await expect(page.locator(".room-chip")).toHaveText("Kuchyňa");
   await expect(page.getByText("15 min denne")).toBeVisible();
   await expect(page.getByLabel("Dnešný časový blok")).toHaveValue("15");
   const reminder = page.getByRole("status", { name: "Malé pripomenutie" });
