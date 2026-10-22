@@ -177,6 +177,12 @@ export function ensurePlans(
       timeBudget: settings.dailyBudget,
       lockedAt: now,
     });
+  // settings.dailyBudget is the only minutes setting. Today and later days
+  // follow it; a past day keeps the snapshot it was lived with.
+  if (settings)
+    for (const plan of s.dailyPlans) {
+      if (plan.date >= day) plan.timeBudget = settings.dailyBudget;
+    }
   if (!s.bonuses.some((b) => b.week === start))
     s.bonuses.push({
       id: `bonus:${h.id}:${start}`,

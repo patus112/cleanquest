@@ -286,8 +286,7 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
               Dnešný plán
             </h2>
             <span className="muted">
-              {s.dailyPlans.find((p) => p.date === day)?.timeBudget} min ·
-              vlastným tempom
+              {s.settings[0].dailyBudget} min · vlastným tempom
             </span>
           </div>
           <p className="tier-hint">
@@ -295,23 +294,17 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
               ? rescueHint
               : tierHint(
                   buildTierContext(s, day).rooms.get(
-                    dailySession(s, day, s.settings[0].dailyBudget)[0]
-                      ?.roomId || "",
+                    dailySession(s, day)[0]?.roomId || "",
                   )?.tier1Days ?? 0,
                   !!buildTierContext(s, day).rooms.get(
-                    dailySession(s, day, s.settings[0].dailyBudget)[0]
-                      ?.roomId || "",
+                    dailySession(s, day)[0]?.roomId || "",
                   )?.hasTier1,
                 ) || "Dnes stačí základ. Ostatné môže počkať."}
           </p>
           {plannedFor(s, day).length || currentTasks(s, day).length ? (
             <div className="task-list">
               {[
-                ...dailySession(
-                  s,
-                  day,
-                  s.dailyPlans.find((p) => p.date === day)?.timeBudget,
-                ),
+                ...dailySession(s, day),
                 ...plannedFor(s, day).filter(
                   (o) =>
                     ids.has(o.id) ||
@@ -448,11 +441,11 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
                           onClick={() =>
                             void run(
                               (state) => markBasicsOk(state, o.roomId),
-                              "V tejto miestnosti je základ v poriadku.",
+                              "Základ máme. Ťažký deň sa nemení.",
                             )
                           }
                         >
-                          Už je to OK
+                          Základ máme
                         </Button>
                       )}
                     </OverflowMenu>

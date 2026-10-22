@@ -116,10 +116,8 @@ test("basics stay ahead of details until they are regular, and a hard day falls 
     });
 
   await nav(page, "Domov");
-  await page.getByRole("button", { name: "Už je to OK" }).click();
-  await expect(
-    page.getByText("V tejto miestnosti je základ v poriadku."),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Základ máme" }).click();
+  await expect(page.getByText("Základ máme. Ťažký deň sa nemení.")).toBeVisible();
   await nav(page, "Úlohy");
   await expect(
     page.getByRole("heading", { name: "Utrieť jednu batériu" }),
@@ -133,10 +131,11 @@ test("basics stay ahead of details until they are regular, and a hard day falls 
     });
 
   await nav(page, "Domov");
-  await page.getByRole("button", { name: "Ťažký deň" }).click();
-  await expect(
-    page.getByRole("button", { name: "Záchranný režim" }),
-  ).toBeVisible();
+  const hardDay = page.getByRole("switch", { name: /Ťažký deň/ });
+  await expect(hardDay).toHaveAttribute("aria-checked", "false");
+  await hardDay.click();
+  await expect(hardDay).toHaveAttribute("aria-checked", "true");
+  await expect(hardDay).toContainText("áno");
   await expect(
     page.getByText("Ťažký deň. Dnes len základ, ostatné v pokoji počká."),
   ).toBeVisible();
@@ -145,9 +144,11 @@ test("basics stay ahead of details until they are regular, and a hard day falls 
       path: "/opt/cursor/artifacts/rescue-mode-viewport.png",
     });
   await nav(page, "Úlohy");
+  // Základ máme already set this room's basics aside. Ťažký deň hides the
+  // next level and does not bring that basic back.
   await expect(
     page.getByRole("heading", { name: "Uprať riad z drezu" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Utrieť jednu batériu" }),
   ).toHaveCount(0);

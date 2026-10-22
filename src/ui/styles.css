@@ -737,6 +737,121 @@ button {
   min-height: 44px;
   font-size: 11px;
 }
+.day-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0 0 8px;
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+.switch-track {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--elevated);
+  border: 1px solid var(--line);
+  position: relative;
+  flex: 0 0 auto;
+}
+.switch[aria-checked="true"] .switch-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--card);
+}
+.switch[aria-checked="true"] .switch-thumb {
+  transform: translateX(18px);
+}
+.switch-value {
+  min-width: 2.2em;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+}
+.switch[aria-checked="true"] .switch-value {
+  color: var(--accent);
+}
+.switch-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.level-steps {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.level-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.level-step {
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.level-step.current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 650;
+}
+.level-step.done {
+  color: var(--accent);
+  border-style: solid;
+}
+.level-step.later {
+  border-style: dashed;
+}
+.level-arrow {
+  color: var(--muted);
+  font-size: 11px;
+}
+.basics-note {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .tabs {
   display: flex;
   border-bottom: 1px solid var(--line);
@@ -1475,6 +1590,8 @@ dialog::backdrop {
 }
 .home-screen > .daily-reminder {
   margin: 0;
+  width: 100%;
+  align-self: stretch;
 }
 .daily-reminder-title {
   margin: 0 0 2px;
@@ -1942,6 +2059,7 @@ dialog::backdrop {
   .home-screen {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: 17px;
   }
   .home-screen > .next-card {

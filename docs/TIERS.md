@@ -27,9 +27,9 @@ For one room, on one day:
 - Tier 3 is allowed only when that tier-1 bar still holds **and** a frequent tier-2 task was completed on at least 4 of those 7 days (or the room has no frequent tier-2 task).
 - Frequent means the task repeats every day or every other day (`unit: day` and interval at most 2). A weekly or rarer reset cannot happen four times in one week, so it does not create that bar. It still comes first on a day it is due.
 - A day counts when that room has at least one completion of that tier which was not undone. The task must still exist; a deleted task cannot be classified. Today is included.
-- Even after the streak is open, a higher tier stays out of **today** while a due tier-1 task for that room is still unfinished. **Už je to OK** marks that room's basics fine for today only. It does not count as doing the work and does not fill the streak.
+- Even after the streak is open, a higher tier stays out of **today** while a due tier-1 task for that room is still unfinished. **Základ máme** marks that room's basics fine for today only. It does not count as doing the work, does not fill the streak, and does not turn **Ťažký deň** off. Remaining basics in that room step aside. The next suggested step is another room's basic while Ťažký deň is on, or the next level for that room when it is off and the streak allows it.
 - Skipping or postponing a basic does not hide other basics. It also does not release that room's details.
-- **Ťažký deň / záchranný režim** shows only tier 1. It does not erase the streak or the saved plan. Turning it off brings the other tiers back under the same rules.
+- **Ťažký deň** is one switch (záchranný režim). Áno shows only tier 1. It does not erase the streak or the saved plan. Nie brings the other tiers back under the same rules. The home indicator stays on Základ while the switch is áno.
 - Within a day, every tier-1 task comes before tier 2 and tier 3. Equal tasks prefer the higher hygiene priority, then the lower floor (`floor.order`, so Prízemie is 0), then a shorter step.
 - If the basics slip under 4 of 7, higher tiers simply stop being offered. The hint does not say the week failed.
 
@@ -37,4 +37,6 @@ The home screen says how many of the last 7 days counted, for example "Základ t
 
 A quick task is tier 1 and one-off unless **Nechať aj ako opakovanú úlohu** is checked. "Idem to spraviť teraz" pins it to the front of today and opens focus. "Už mám hotové" writes a normal manual completion for today, with the usual DA, and does not put it on the plan. Neither path adds a weekly reward obligation. The rewarded manual time limit still applies to "Už mám hotové".
 
-New weeks are filled with this order. A week that was already locked is not rebuilt. Details that were saved in it stay there, but they are hidden while the room's gate is closed. A basic that was not in the week can be added to today, up to the visible time budget. A higher tier is added to today only after a basic was completed or marked OK today, and only when the streak allows it.
+New weeks are filled with this order. A week that was already locked is not rebuilt. Details that were saved in it stay there, but they are hidden while the room's gate is closed. A basic that was not in the week can be added to today, up to the visible time budget. A higher tier is added to today only after a basic was completed or **Základ máme** was chosen today, and only when the streak allows it.
+
+The home card shows Základ → Čisté → Detaily for the task on screen. The current step is accented and marked `aria-current`. Earlier steps show a check. Later steps stay dashed. Ťažký deň keeps the current step on Základ.

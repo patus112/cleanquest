@@ -41,7 +41,6 @@ describe("week rhythm previews", () => {
         open={() => {}}
         run={async () => true}
         navigate={() => {}}
-        setSessionBudget={() => {}}
       />,
     );
 

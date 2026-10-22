@@ -70,8 +70,7 @@ export default function App() {
     [busy, setBusy] = useState(false),
     [page, setPage] = useState(pageFromHash),
     [modal, setModal] = useState<ModalType>(null),
-    [offline, setOffline] = useState(!navigator.onLine),
-    [sessionBudget, setSessionBudget] = useState(15);
+    [offline, setOffline] = useState(!navigator.onLine);
   const [safety, setSafety] = useState<LocalSafety>(defaultSafety),
     [exporting, setExporting] = useState(false),
     [preparedBackup, setPreparedBackup] = useState<PreparedBackup | null>(null),
@@ -180,7 +179,6 @@ export default function App() {
       const next = structuredClone(state);
       if (next.households.length) ensurePlans(next, dayOf(next));
       publish(await repo.replace(next));
-      setSessionBudget(next.settings[0]?.dailyBudget || 15);
       setModal(null);
       setToast("Údaje sú uložené.");
       navigate("home");
@@ -207,7 +205,6 @@ export default function App() {
         backup.sourceSafety,
       );
       publish(restored);
-      setSessionBudget(restored.settings[0]?.dailyBudget || 15);
       setModal(null);
       setToast("Záloha bola obnovená a skontrolovaná.");
       navigate("home");
@@ -238,7 +235,6 @@ export default function App() {
           settleUpgrade();
           setState(next);
           setSafety((await repo.readSnapshot()).safety);
-          setSessionBudget(next.settings[0]?.dailyBudget || 15);
           setLoading(false);
         }
       } catch (err) {
@@ -398,7 +394,7 @@ export default function App() {
     />
   ),
     level = levelFor(totalXp(s)),
-    props = { s, run, open: setModal, sessionBudget, reminder },
+    props = { s, run, open: setModal, reminder },
     celebrate =
       toast.startsWith("Hotovo") ||
       toast.startsWith("Malý krok je hotový") ||
@@ -524,7 +520,6 @@ export default function App() {
             <Dashboard
               {...props}
               navigate={navigate}
-              setSessionBudget={setSessionBudget}
             />
           )}
           {page === "tasks" && <Tasks {...props} />}

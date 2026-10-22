@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
   Check,
@@ -30,6 +30,7 @@ import {
   postpone,
   setRescue,
   markBasicsOk,
+  applyDailyBudget,
 } from "../domain/commands";
 import {
   dailySession,
@@ -37,7 +38,13 @@ import {
   openTasks,
   taskIsHeld,
 } from "../domain/scheduler";
-import { buildTierContext, rescueHint, taskTier, tierHint } from "../domain/tiers";
+import {
+  buildTierContext,
+  cleaningProgress,
+  rescueHint,
+  taskTier,
+  tierHint,
+} from "../domain/tiers";
 import { totalXp, levelFor, streak } from "../domain/rewards";
 import { money } from "../domain/model";
 import { shiftDay, weekStart, weekday } from "../domain/calendar";
@@ -61,14 +68,12 @@ export default function Dashboard({
   run,
   open,
   navigate,
-  sessionBudget = 15,
-  setSessionBudget,
   reminder = null,
 }: ScreenProps & {
   navigate: (page: string) => void;
-  setSessionBudget: (minutes: number) => void;
   reminder?: ReactNode;
 }) {
+  const hardDayNote = useId();
   const day = dayOf(s),
     plan = s.dailyPlans.find((p) => p.date === day) || {
       occurrences: [],
@@ -85,7 +90,7 @@ export default function Dashboard({
     done = counted.filter((o) => doneIds.has(o.id)).length,
     total = counted.length,
     progress = total ? done / total : 1,
-    task = dailySession(s, day, sessionBudget)[0];
+    task = dailySession(s, day)[0];
   const xp = totalXp(s),
     level = levelFor(xp),
     week = s.weeks.find((w) => w.start === weekStart(day)) || {
@@ -114,6 +119,13 @@ export default function Dashboard({
     ? !!buildTierContext(s, day).rooms.get(task.roomId)?.hasTier1
     : false;
   const hint = rescue ? rescueHint : tierHint(roomDays, roomHasBasics);
+  const suggestedTier = task
+    ? taskTier(
+        s.tasks.find((item) => item.id === task.taskId) || { title: task.title },
+      )
+    : null;
+  const levels = cleaningProgress(rescue, suggestedTier);
+  const minutes = s.settings[0].dailyBudget;
   const finish = () => {
     if (!task) return;
     void run(
@@ -128,8 +140,11 @@ export default function Dashboard({
         <span>Dnešný krátky blok</span>
         <select
           aria-label="Dnešný časový blok"
-          value={sessionBudget}
-          onChange={(e) => setSessionBudget(Number(e.target.value))}
+          value={minutes}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            void run((state) => applyDailyBudget(state, next));
+          }}
         >
           {[5, 10, 15, 20, 30].map((n) => (
             <option value={n} key={n}>
@@ -176,7 +191,7 @@ export default function Dashboard({
           <SectionLabel icon={Clock}>Tvoj dnešný rytmus</SectionLabel>
           <span className="tag">
             <Clock size={13} strokeWidth={1.75} />
-            {plan.timeBudget} min denne
+            {minutes} min denne
           </span>
         </div>
         <div className="daily-body">
@@ -284,20 +299,76 @@ export default function Dashboard({
       <section className="next-card">
         <div className="section-heading">
           <SectionLabel icon={Sparkles}>LEN JEDNA VEC</SectionLabel>
-          <Button
-            variant={rescue ? "compact" : "secondary compact"}
-            aria-pressed={rescue}
+        </div>
+        <div className="day-mode">
+          <button
+            type="button"
+            className="switch"
+            role="switch"
+            aria-checked={rescue}
+            aria-describedby={hardDayNote}
             onClick={() =>
               void run(
                 (state) => setRescue(state, !rescue),
                 rescue
-                  ? "Znova ukážeme aj ďalšie kroky."
-                  : "Dnes len základ. Ostatné počká.",
+                  ? "Ťažký deň je vypnutý."
+                  : "Ťažký deň je zapnutý. Dnes len základ.",
               )
             }
           >
-            {rescue ? "Záchranný režim" : "Ťažký deň"}
-          </Button>
+            <span className="switch-label">Ťažký deň</span>
+            <span className="switch-track" aria-hidden="true">
+              <span className="switch-thumb" />
+            </span>
+            <span className="switch-value">{rescue ? "áno" : "nie"}</span>
+          </button>
+          <p id={hardDayNote} className="switch-note">
+            Záchranný režim
+          </p>
+          <ol className="level-steps" aria-label="Úrovne upratovania">
+            {levels.map((level, index) => (
+              <li key={level.name}>
+                <span
+                  className={`level-step ${level.state}`}
+                  aria-current={level.state === "current" ? "step" : undefined}
+                >
+                  {level.state === "done" ? "✓ " : ""}
+                  {level.name}
+                  <span className="sr-only">
+                    {level.state === "current"
+                      ? ", teraz"
+                      : level.state === "done"
+                        ? ", hotové"
+                        : ", neskôr"}
+                  </span>
+                </span>
+                {index < levels.length - 1 && (
+                  <span className="level-arrow" aria-hidden="true">
+                    →
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+          {task && suggestedTier === 1 && (
+            <Button
+              variant="secondary compact"
+              onClick={() =>
+                void run(
+                  (state) => markBasicsOk(state, task.roomId),
+                  "Základ máme. Ťažký deň sa nemení.",
+                )
+              }
+            >
+              Základ máme
+            </Button>
+          )}
+          {suggestedTier === 1 && (
+            <p className="basics-note">
+              V tejto miestnosti základ vyzerá dobre, takže dnes sa môže ukázať
+              ďalšia úroveň. Ťažký deň to nevypne.
+            </p>
+          )}
         </div>
         {hint && <p className="tier-hint">{hint}</p>}
         {task ? (
@@ -342,23 +413,6 @@ export default function Dashboard({
               >
                 Odložiť na zajtra
               </Button>
-              {taskTier(
-                s.tasks.find((item) => item.id === task.taskId) || {
-                  title: task.title,
-                },
-              ) === 1 && (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void run(
-                      (state) => markBasicsOk(state, task.roomId),
-                      "V tejto miestnosti je základ v poriadku.",
-                    )
-                  }
-                >
-                  Už je to OK
-                </Button>
-              )}
               <Button variant="ghost" onClick={() => open({ kind: "focus" })}>
                 Začať malý krok
                 <ArrowRight size={18} />
