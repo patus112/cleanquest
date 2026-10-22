@@ -6,15 +6,21 @@ test("quick task can be started now or saved as already done", async ({
 }, info) => {
   await seed(page);
   await page.setViewportSize({ width: 390, height: 844 });
+  const skip = page.getByRole("link", { name: "Preskočiť na obsah" });
+  await page.keyboard.press("Tab");
+  await expect(skip).toBeFocused();
+  const shown = await skip.boundingBox();
+  expect(shown!.y).toBeGreaterThanOrEqual(0);
   await page.getByRole("button", { name: "Rýchla úloha" }).click();
   const dialog = page.getByRole("dialog");
   await expect(
     dialog.getByRole("heading", { name: "Rýchla úloha" }),
   ).toBeVisible();
+  const hidden = await skip.boundingBox();
+  expect((hidden?.y ?? -1) + (hidden?.height ?? 0)).toBeLessThanOrEqual(0);
   if (info.project.name === "mobile-chromium")
     await page.screenshot({
-      path: "/opt/cursor/artifacts/quick-task-dialog.png",
-      fullPage: true,
+      path: "/opt/cursor/artifacts/quick-task-dialog-viewport.png",
     });
   await dialog.getByLabel("Názov").fill("Zložiť deku z pohovky");
   await dialog.getByLabel("Trvanie (minúty)").fill("5");
@@ -24,8 +30,7 @@ test("quick task can be started now or saved as already done", async ({
   ).toBeVisible();
   if (info.project.name === "mobile-chromium")
     await page.screenshot({
-      path: "/opt/cursor/artifacts/quick-task-focus.png",
-      fullPage: true,
+      path: "/opt/cursor/artifacts/quick-task-focus-viewport.png",
     });
   await dialog.getByRole("button", { name: "Mám hotovo" }).click();
   await expect(
@@ -61,7 +66,6 @@ test("quick task can be started now or saved as already done", async ({
   await expect(page.getByRole("heading", { name: "Dnešný plán" })).toBeVisible();
   if (info.project.name === "mobile-chromium")
     await page.screenshot({
-      path: "/opt/cursor/artifacts/plan-tier-note.png",
-      fullPage: true,
+      path: "/opt/cursor/artifacts/plan-tier-note-viewport.png",
     });
 });

@@ -12,7 +12,7 @@ Constants live in `src/domain/tiers.ts`:
 
 ## Tiers
 
-1. **Základ** — reset the room so it looks tidy at a glance: dishes, a clear sink, the kitchen counter, big clutter, bins, starting or hanging laundry, the toilet bowl, a quick floor clear.
+1. **Základ** — reset the room so it looks tidy at a glance: dishes, a clear sink, the kitchen counter, big clutter, bins, starting or hanging laundry, the toilet bowl, a quick floor clear. Dishes and loading the dishwasher are created only for a kitchen sink or a kitchen dishwasher. A sink in the living room or bathroom does not get them.
 2. **Čisté** — regular cleaning of surfaces, floors and the bathroom.
 3. **Detaily a organizácia** — plugs, strainers, tap details, sorting shelves and drawers, and nicer upkeep.
 

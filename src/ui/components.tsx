@@ -232,7 +232,31 @@ export function Dialog({
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
-    ref.current?.showModal();
+    const dialog = ref.current;
+    if (!dialog) return;
+    dialog.showModal();
+    const focusInside = () => {
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLElement &&
+        active !== dialog &&
+        dialog.contains(active)
+      )
+        return;
+      const field = dialog.querySelector<HTMLElement>(
+        "input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='file']), select, textarea, button",
+      );
+      (field ?? dialog).focus({ preventScroll: true });
+    };
+    focusInside();
+    const onFocusIn = (event: FocusEvent) => {
+      if (!dialog.isConnected || !dialog.open) return;
+      if (!(event.target instanceof Node) || dialog.contains(event.target))
+        return;
+      focusInside();
+    };
+    document.addEventListener("focusin", onFocusIn, true);
+    return () => document.removeEventListener("focusin", onFocusIn, true);
   }, []);
   return (
     <dialog

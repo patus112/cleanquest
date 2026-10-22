@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fixture, day, makeTask, now } from "./fixture";
 import { pickTasks, dailySession, ensurePlans } from "../src/domain/scheduler";
 import { complete, markBasicsOk, setRescue } from "../src/domain/commands";
-import { templates } from "../src/data/templates";
+import { missingBasicTasks, templates } from "../src/data/templates";
 import {
   taskTier,
   tierHint,
@@ -103,6 +103,55 @@ describe("cleaning tiers", () => {
     ).toBe(2);
     expect(TIER_WINDOW_DAYS).toBe(7);
     expect(TIER_UNLOCK_DAYS).toBe(4);
+  });
+
+  it("backfills sink dishes only onto a kitchen sink", () => {
+    const s = fixture(false);
+    s.tasks = [];
+    const living = s.rooms[0];
+    const kitchen = {
+      ...living,
+      id: "room-kitchen",
+      name: "Kuchyňa",
+      category: "kitchen" as const,
+      order: 1,
+    };
+    const bath = {
+      ...living,
+      id: "room-bath",
+      name: "Kúpeľňa",
+      category: "bathroom" as const,
+      order: 2,
+    };
+    s.rooms.push(kitchen, bath);
+    for (const [id, roomId] of [
+      ["sink-living", living.id],
+      ["sink-kitchen", kitchen.id],
+      ["sink-bath", bath.id],
+    ] as const)
+      s.objects.push({
+        id,
+        householdId: s.households[0].id,
+        roomId,
+        name: "Drez",
+        category: "sink",
+        quantity: 1,
+        dimensions: "",
+        surface: "",
+        accessibility: "safe",
+        notes: "",
+      });
+    const dishes = missingBasicTasks(s).filter(
+      (task) => task.templateId === "basic-sink-dishes",
+    );
+    expect(dishes.map((task) => task.roomId)).toEqual(["room-kitchen"]);
+    expect(dishes[0]?.objectId).toBe("sink-kitchen");
+    expect(
+      missingBasicTasks(s).some(
+        (task) =>
+          task.templateId === "basic-sink-dishes" && task.roomId !== kitchen.id,
+      ),
+    ).toBe(false);
   });
 
   it("offers tier 1 across rooms before details, ground floor breaking a tie", () => {

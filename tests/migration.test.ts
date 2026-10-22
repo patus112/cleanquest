@@ -668,6 +668,107 @@ describe("schema upgrades from every previous version", () => {
       });
     },
   );
+  it("backfills sink dishes only onto a kitchen sink", async () => {
+    const name = `sinks-${uid()}`;
+    const legacy = createDatabase(name, 5);
+    databases.push(legacy);
+    await legacy.open();
+    const householdId = "home-sinks";
+    await legacy.table("households").put({
+      id: householdId,
+      name: "Byt",
+      type: "apartment",
+      timezone: "Europe/Bratislava",
+      createdAt: "2026-04-01T12:00:00.000Z",
+    });
+    for (const [order, room] of (
+      [
+        ["room-living", "Obývačka", "living"],
+        ["room-kitchen", "Kuchyňa", "kitchen"],
+        ["room-bath", "Kúpeľňa", "bathroom"],
+      ] as const
+    ).entries())
+      await legacy.table("rooms").put({
+        id: room[0],
+        householdId,
+        floorId: "floor-1",
+        name: room[1],
+        category: room[2],
+        flooring: "tile",
+        order,
+        enabled: true,
+        zones: [],
+      });
+    for (const [id, roomId] of [
+      ["sink-living", "room-living"],
+      ["sink-kitchen", "room-kitchen"],
+      ["sink-bath", "room-bath"],
+    ] as const)
+      await legacy.table("objects").put({
+        id,
+        householdId,
+        roomId,
+        name: "Drez",
+        category: "sink",
+        quantity: 1,
+        dimensions: "",
+        surface: "",
+        accessibility: "safe",
+        notes: "",
+      });
+    await legacy.table("tasks").put({
+      id: "task-kept",
+      householdId,
+      roomId: "room-living",
+      title: "Utrieť jednu poličku",
+      instructions: "Iba predok.",
+      duration: 3,
+      recurrence: { unit: "week", interval: 1, strategy: "completion" },
+      priority: 1,
+      energy: 1,
+      supplies: [],
+      enabled: true,
+      nextDue: "2026-10-05",
+      acceptedLong: false,
+    });
+    await legacy.table("completions").put({
+      id: "completion-kept",
+      householdId,
+      taskId: "task-kept",
+      occurrenceId: "manual:task-kept@2026-10-04",
+      title: "Utrieť jednu poličku",
+      roomName: "Obývačka",
+      duration: 3,
+      completedAt: "2026-10-04T12:00:00.000Z",
+      day: "2026-10-04",
+      type: "manual",
+      xp: 10,
+      previousDue: "2026-10-04",
+      nextDue: "2026-10-11",
+      undone: false,
+    });
+    legacy.close();
+    const current = createDatabase(name);
+    databases.push(current);
+    const saved = (await new LocalRepository(current).readSnapshot()).state;
+    const dishes = saved.tasks.filter(
+      (task) => task.templateId === "basic-sink-dishes",
+    );
+    expect(dishes.map((task) => [task.roomId, task.objectId])).toEqual([
+      ["room-kitchen", "sink-kitchen"],
+    ]);
+    expect(
+      saved.tasks.some(
+        (task) =>
+          task.templateId === "basic-sink-dishes" &&
+          task.roomId !== "room-kitchen",
+      ),
+    ).toBe(false);
+    expect(saved.tasks.some((task) => task.id === "task-kept")).toBe(true);
+    expect(
+      saved.completions.find((item) => item.id === "completion-kept")?.undone,
+    ).toBe(false);
+  });
   it("closes an older open tab and does not let it reopen the previous schema", async () => {
     const name = `tabs-${uid()}`;
     const older = createDatabase(name);

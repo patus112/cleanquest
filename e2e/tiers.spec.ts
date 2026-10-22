@@ -9,6 +9,14 @@ function tierHome() {
   s.settings[0].dailyBudget = 30;
   s.settings[0].energy = 3;
   s.tasks = [];
+  const kitchen = {
+    ...s.rooms[0],
+    id: "room-kitchen",
+    name: "Kuchyňa",
+    category: "kitchen" as const,
+    order: 1,
+  };
+  s.rooms.push(kitchen);
   const daily = {
     unit: "day" as const,
     interval: 1,
@@ -17,6 +25,7 @@ function tierHome() {
   };
   const dishes = makeTask(s, {
     id: "dishes",
+    roomId: kitchen.id,
     title: "Uprať riad z drezu",
     duration: 5,
     priority: 3,
@@ -25,6 +34,7 @@ function tierHome() {
   });
   const wipe = makeTask(s, {
     id: "wipe",
+    roomId: kitchen.id,
     title: "Utrieť jednu batériu",
     duration: 5,
     priority: 2,
@@ -33,6 +43,7 @@ function tierHome() {
   });
   const plug = makeTask(s, {
     id: "plug",
+    roomId: kitchen.id,
     title: "Očistiť zátku umývadla",
     duration: 5,
     priority: 3,
@@ -47,7 +58,7 @@ function tierHome() {
       taskId: dishes.id,
       occurrenceId: `manual:dishes@${when}`,
       title: dishes.title,
-      roomName: s.rooms[0].name,
+      roomName: kitchen.name,
       duration: dishes.duration,
       completedAt: `${when}T12:00:00.000Z`,
       day: when,
@@ -81,10 +92,27 @@ test("basics stay ahead of details until they are regular, and a hard day falls 
   await expect(
     page.getByRole("heading", { name: "Očistiť zátku umývadla" }),
   ).toHaveCount(0);
+  await expect(
+    page
+      .locator("article.task-row", {
+        has: page.getByRole("heading", { name: "Uprať riad z drezu" }),
+      })
+      .locator(".task-location"),
+  ).toHaveText("Kuchyňa");
+  await page.evaluate(() =>
+    window.scrollTo(0, document.documentElement.scrollHeight),
+  );
+  const cycleBox = await page.getByText("Pri spustení práčky").boundingBox();
+  const navBox = await page
+    .getByRole("navigation", { name: "Mobilná navigácia" })
+    .boundingBox();
+  expect(cycleBox).toBeTruthy();
+  expect(navBox).toBeTruthy();
+  expect(cycleBox!.y + cycleBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
+  await page.evaluate(() => window.scrollTo(0, 0));
   if (info.project.name === "mobile-chromium")
     await page.screenshot({
-      path: "/opt/cursor/artifacts/plan-tier-gating.png",
-      fullPage: true,
+      path: "/opt/cursor/artifacts/plan-tier-gating-viewport.png",
     });
 
   await nav(page, "Domov");
@@ -101,8 +129,7 @@ test("basics stay ahead of details until they are regular, and a hard day falls 
   ).toHaveCount(0);
   if (info.project.name === "mobile-chromium")
     await page.screenshot({
-      path: "/opt/cursor/artifacts/plan-tier-open.png",
-      fullPage: true,
+      path: "/opt/cursor/artifacts/plan-tier-open-viewport.png",
     });
 
   await nav(page, "Domov");
@@ -115,8 +142,7 @@ test("basics stay ahead of details until they are regular, and a hard day falls 
   ).toBeVisible();
   if (info.project.name === "mobile-chromium")
     await page.screenshot({
-      path: "/opt/cursor/artifacts/rescue-mode.png",
-      fullPage: true,
+      path: "/opt/cursor/artifacts/rescue-mode-viewport.png",
     });
   await nav(page, "Úlohy");
   await expect(
@@ -130,7 +156,6 @@ test("basics stay ahead of details until they are regular, and a hard day falls 
   ).toBeVisible();
   if (info.project.name === "mobile-chromium")
     await page.screenshot({
-      path: "/opt/cursor/artifacts/rescue-plan.png",
-      fullPage: true,
+      path: "/opt/cursor/artifacts/rescue-plan-viewport.png",
     });
 });
