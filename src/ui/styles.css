@@ -841,6 +841,72 @@ button {
   font-size: 11px;
   line-height: 1.45;
 }
+.level-overview {
+  margin: 0 0 22px;
+}
+.level-overview > h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.level-overview-lead,
+.level-note,
+.level-room-days {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.level-group {
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.level-group > h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.level-group > p {
+  margin: 0 0 8px;
+}
+.level-overview-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.level-name {
+  color: var(--accent);
+  font-weight: 650;
+}
+.level-room {
+  margin-top: 12px;
+}
+.level-room h4 {
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+.level-room ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.level-room li {
+  display: grid;
+  grid-template-columns: 1.2em minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  min-height: 32px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+}
+.level-task-status {
+  color: var(--text);
+  font-size: 13px;
+}
 .sr-only {
   position: absolute;
   width: 1px;

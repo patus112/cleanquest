@@ -204,12 +204,31 @@ export interface RoomTierState {
   hasFrequentTier2: boolean;
   basicsOpen: boolean;
   openedToday: boolean;
+  /** A due tier-1 task is still unfinished. Independent of Základ máme. */
+  pendingBasic: boolean;
+  /** A tier-1 task was completed today. */
+  didBasic: boolean;
   /** Základ máme for today. Remaining basics in this room step aside. */
+  markedOk: boolean;
+  /** Floor id when this room shares the open-plan gate. */
+  openPlanFloorId?: string;
+}
+
+export interface ZoneTierState {
+  floorId: string;
+  roomIds: string[];
+  tier1Days: number;
+  tier2Days: number;
+  hasFrequentTier1: boolean;
+  hasFrequentTier2: boolean;
+  basicsOpen: boolean;
+  openedToday: boolean;
   markedOk: boolean;
 }
 
 export interface TierContext {
   rooms: Map<string, RoomTierState>;
+  zones: Map<string, ZoneTierState>;
 }
 
 function tierReady(room: RoomTierState, tier: 1 | 2): boolean {
@@ -236,17 +255,54 @@ export function frequentTierTask(
   );
 }
 
+export function zoneOf(
+  ctx: TierContext,
+  roomId: string,
+): ZoneTierState | undefined {
+  const floorId = ctx.rooms.get(roomId)?.openPlanFloorId;
+  return floorId ? ctx.zones.get(floorId) : undefined;
+}
+
 export function canSuggest(
   room: RoomTierState,
   tier: CleaningTier,
   rescue: boolean,
+  zone?: ZoneTierState,
 ): boolean {
   if (rescue && tier > 1) return false;
-  if (tier <= 1) return !room.markedOk;
-  if (room.basicsOpen) return false;
-  if (!tierReady(room, 1)) return false;
-  if (tier === 3 && !tierReady(room, 2)) return false;
+  const markedOk = zone ? zone.markedOk : room.markedOk;
+  if (tier <= 1) return !markedOk;
+  const basicsOpen = zone ? zone.basicsOpen : room.basicsOpen;
+  const ready1 = zone
+    ? !zone.hasFrequentTier1 || zone.tier1Days >= TIER_UNLOCK_DAYS
+    : tierReady(room, 1);
+  const ready2 = zone
+    ? !zone.hasFrequentTier2 || zone.tier2Days >= TIER_UNLOCK_DAYS
+    : tierReady(room, 2);
+  if (basicsOpen) return false;
+  if (!ready1) return false;
+  if (tier === 3 && !ready2) return false;
   return true;
+}
+
+/** Whether today's sync may add a higher tier. A zone waits for every room. */
+export function openedForSuggestions(ctx: TierContext, roomId: string): boolean {
+  const zone = zoneOf(ctx, roomId);
+  if (zone) return zone.openedToday;
+  return !!ctx.rooms.get(roomId)?.openedToday;
+}
+
+/** Days of základ the hint should show. A zone uses the quietest member. */
+export function streakFor(s: State, day: Day, roomId: string) {
+  const ctx = buildTierContext(s, day);
+  const zone = zoneOf(ctx, roomId);
+  if (zone)
+    return {
+      days: zone.tier1Days,
+      hasBasics: zone.roomIds.some((id) => ctx.rooms.get(id)?.hasTier1),
+    };
+  const room = ctx.rooms.get(roomId);
+  return { days: room?.tier1Days ?? 0, hasBasics: !!room?.hasTier1 };
 }
 
 export function floorRank(s: State, roomId: string): number {
@@ -339,6 +395,8 @@ export function buildTierContext(
     const didBasic = inRoom.some(
       (task) => taskTier(task) === 1 && completedToday.has(task.id),
     );
+    const markedOk = basicsOk.has(roomId);
+    const pendingBasic = hasTier1 && openBasic;
     rooms.set(roomId, {
       tier1Days: days.get(roomId)?.tier1.size ?? 0,
       tier2Days: days.get(roomId)?.tier2.size ?? 0,
@@ -346,10 +404,192 @@ export function buildTierContext(
       hasTier2,
       hasFrequentTier1,
       hasFrequentTier2,
-      basicsOpen: hasTier1 && openBasic && !basicsOk.has(roomId),
-      openedToday: didBasic || basicsOk.has(roomId),
-      markedOk: basicsOk.has(roomId),
+      basicsOpen: pendingBasic && !markedOk,
+      openedToday: didBasic || markedOk,
+      pendingBasic,
+      didBasic,
+      markedOk,
     });
   }
-  return { rooms };
+  const zones = new Map<string, ZoneTierState>();
+  const members = new Map<string, string[]>();
+  for (const room of s.rooms) {
+    if (!room.openPlan || !room.enabled) continue;
+    const list = members.get(room.floorId) ?? [];
+    list.push(room.id);
+    members.set(room.floorId, list);
+  }
+  for (const [floorId, ids] of members) {
+    for (const id of ids) {
+      const row = rooms.get(id);
+      if (row) row.openPlanFloorId = floorId;
+    }
+    const states = ids.map((id) => rooms.get(id)).filter((row) => !!row);
+    const frequent1 = states.filter((row) => row.hasFrequentTier1);
+    const frequent2 = states.filter((row) => row.hasFrequentTier2);
+    const markedOk = states.some((row) => row.markedOk);
+    const basicsOpen = !markedOk && states.some((row) => row.pendingBasic);
+    zones.set(floorId, {
+      floorId,
+      roomIds: ids,
+      tier1Days: frequent1.length
+        ? Math.min(...frequent1.map((row) => row.tier1Days))
+        : 0,
+      tier2Days: frequent2.length
+        ? Math.min(...frequent2.map((row) => row.tier2Days))
+        : 0,
+      hasFrequentTier1: frequent1.length > 0,
+      hasFrequentTier2: frequent2.length > 0,
+      basicsOpen,
+      openedToday:
+        !basicsOpen && (markedOk || states.some((row) => row.didBasic)),
+      markedOk,
+    });
+  }
+  return { rooms, zones };
+}
+
+export type BasicToday = "done" | "waiting" | "later";
+
+export interface LevelRoomView {
+  roomId: string;
+  name: string;
+  tier1Days: number;
+  basics: { id: string; title: string; status: BasicToday }[];
+}
+
+export interface LevelGroupView {
+  id: string;
+  kind: "zone" | "room";
+  name: string;
+  level: CleaningTier;
+  tier1Days: number;
+  note: string;
+  rooms: LevelRoomView[];
+}
+
+function reachedLevel(
+  hasFrequentTier1: boolean,
+  tier1Days: number,
+  hasFrequentTier2: boolean,
+  tier2Days: number,
+  hasTier2: boolean,
+  hasTier3: boolean,
+): CleaningTier {
+  const ready1 = !hasFrequentTier1 || tier1Days >= TIER_UNLOCK_DAYS;
+  const ready2 = ready1 && (!hasFrequentTier2 || tier2Days >= TIER_UNLOCK_DAYS);
+  if (ready1 && ready2 && hasTier3) return 3;
+  if (ready1 && (hasTier2 || hasTier3)) return 2;
+  return 1;
+}
+
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} a ${names[names.length - 1]}`;
+}
+
+/** What she can see: the level, the 7-day základ, and today's basics. */
+export function levelOverview(s: State, day: Day): LevelGroupView[] {
+  const ctx = buildTierContext(s, day);
+  const completedToday = new Set(
+    s.completions
+      .filter((completion) => !completion.undone && completion.day === day)
+      .map((completion) => completion.taskId),
+  );
+  const roomView = (roomId: string): LevelRoomView => {
+    const room = s.rooms.find((item) => item.id === roomId);
+    const basics = s.tasks
+      .filter(
+        (task) =>
+          task.roomId === roomId && task.enabled && taskTier(task) === 1,
+      )
+      .map((task) => ({
+        id: task.id,
+        title: task.title,
+        status: (completedToday.has(task.id)
+          ? "done"
+          : task.nextDue <= day
+            ? "waiting"
+            : "later") as BasicToday,
+      }));
+    return {
+      roomId,
+      name: room?.name || "Miestnosť",
+      tier1Days: ctx.rooms.get(roomId)?.tier1Days ?? 0,
+      basics,
+    };
+  };
+  const groups: LevelGroupView[] = [];
+  const seen = new Set<string>();
+  for (const floor of [...s.floors].sort((a, b) => a.order - b.order)) {
+    const zone = ctx.zones.get(floor.id);
+    if (!zone) continue;
+    for (const id of zone.roomIds) seen.add(id);
+    const members = zone.roomIds.map(roomView);
+    const behind = members.filter((room) => {
+      const state = ctx.rooms.get(room.roomId);
+      return !!state?.hasFrequentTier1 && room.tier1Days < TIER_UNLOCK_DAYS;
+    });
+    const hasTier2 = zone.roomIds.some((id) => ctx.rooms.get(id)?.hasTier2);
+    const hasTier3 = zone.roomIds.some((id) =>
+      s.tasks.some(
+        (task) =>
+          task.roomId === id && task.enabled && taskTier(task) === 3,
+      ),
+    );
+    const level = reachedLevel(
+      zone.hasFrequentTier1,
+      zone.tier1Days,
+      zone.hasFrequentTier2,
+      zone.tier2Days,
+      hasTier2,
+      hasTier3,
+    );
+    const names = joinNames(behind.map((room) => room.name));
+    const note = behind.length
+      ? `${names} ${behind.length === 1 ? "má" : "majú"} základ menej ako 4 dni z posledných 7. Čisté príde, až keď ho bude mať celý priestor.`
+      : zone.basicsOpen
+        ? "Dnes ešte základ. Potom sa môže ukázať ďalšia úroveň."
+        : level === 1
+          ? "Dnes stačí, aby to na prvý pohľad vyzeralo upratané."
+          : "Celý priestor má základ. Ďalšia úroveň sa môže ukázať.";
+    groups.push({
+      id: `zone:${floor.id}`,
+      kind: "zone",
+      name: `${floor.name} – otvorený priestor`,
+      level,
+      tier1Days: zone.tier1Days,
+      note,
+      rooms: members,
+    });
+  }
+  for (const room of [...s.rooms].sort((a, b) => a.order - b.order)) {
+    if (!room.enabled || seen.has(room.id)) continue;
+    const state = ctx.rooms.get(room.id);
+    const view = roomView(room.id);
+    const hasTier3 = s.tasks.some(
+      (task) =>
+        task.roomId === room.id && task.enabled && taskTier(task) === 3,
+    );
+    const level = reachedLevel(
+      !!state?.hasFrequentTier1,
+      state?.tier1Days ?? 0,
+      !!state?.hasFrequentTier2,
+      state?.tier2Days ?? 0,
+      !!state?.hasTier2,
+      hasTier3,
+    );
+    groups.push({
+      id: room.id,
+      kind: "room",
+      name: room.name,
+      level,
+      tier1Days: state?.tier1Days ?? 0,
+      note: state?.hasTier1
+        ? tierHint(state.tier1Days, true)
+        : "Základ tu zatiaľ nemáš. Ďalšie úlohy môžu pokojne počkať.",
+      rooms: [view],
+    });
+  }
+  return groups;
 }

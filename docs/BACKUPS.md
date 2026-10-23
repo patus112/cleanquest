@@ -14,7 +14,7 @@ Filename: `cleanquest-backup-YYYY-MM-DD-HHMM.zip`, using the exporting device's 
 
 | Entry                  | Contents                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest.json`        | `format: cleanquest-zip`, format version 1, data schema 2, database version 6, application version, UTC creation time, household ID, current revision, counts, photo descriptors, checksums and manifest hash |
+| `manifest.json`        | `format: cleanquest-zip`, format version 1, data schema 2, database version 7, application version, UTC creation time, household ID, current revision, counts, photo descriptors, checksums and manifest hash |
 | `data.json`            | `format: cleanquest-data`, schema 2, all household tables, reminder preference and safety metadata                                                                                                            |
 | `photos/0001.jpg` etc. | PNG/JPEG/WebP raster bytes; numbered filenames, no executable content or filesystem paths                                                                                                                     |
 
@@ -24,7 +24,7 @@ All room/object/problem/Mega before/after references are included. Identical ras
 
 Every data/photo file has a SHA-256 checksum. The manifest hash covers the JSON serialization of the normalized manifest fields excluding that hash itself. Checksums detect integrity errors; they are not a cryptographic signature or encryption. The archive remains readable by the person holding it.
 
-Supported import paths are dispatched explicitly by format/version. Legacy `cleanquest` JSON envelopes 1 and 2 are validated and converted to the current model; they display that checksums are unavailable. Unsupported future versions fail clearly. Database migration versions and backup format versions are independent.
+Supported import paths are dispatched explicitly by format/version. Legacy `cleanquest` JSON envelopes 1 and 2 are validated and converted to the current model; they display that checksums are unavailable. Unsupported future versions fail clearly. Database migration versions and backup format versions are independent. Backup schema stays 2. `room.openPlan` is optional on the room, so a file from before open-plan zones still imports, and a new file keeps the mark.
 
 ## Limits and photos
 

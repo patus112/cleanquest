@@ -163,6 +163,11 @@ export interface Room {
   order: number;
   enabled: boolean;
   zones: string[];
+  /**
+   * Shares one gate with every other enabled room on this floor that has the
+   * flag. Absent means the room is gated on its own.
+   */
+  openPlan?: boolean;
   photo?: string;
 }
 export interface Inventory {

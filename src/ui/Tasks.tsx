@@ -36,11 +36,12 @@ import {
   ensurePlans,
 } from "../domain/scheduler";
 import {
-  buildTierContext,
   rescueHint,
+  streakFor,
   taskTier,
   tierHint,
 } from "../domain/tiers";
+import { LevelOverview } from "./LevelOverview";
 import { shiftDay, recurrenceLabel } from "../domain/calendar";
 import {
   Button,
@@ -98,6 +99,11 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
           (o) =>
             o.id === t.objectId && ["washer", "dryer"].includes(o.category),
         )),
+  );
+  const todayStreak = streakFor(
+    s,
+    day,
+    dailySession(s, day)[0]?.roomId || "",
   );
   const taskList = (tasks: Task[]) =>
     tasks.length ? (
@@ -292,14 +298,8 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
           <p className="tier-hint">
             {s.settings[0].rescue
               ? rescueHint
-              : tierHint(
-                  buildTierContext(s, day).rooms.get(
-                    dailySession(s, day)[0]?.roomId || "",
-                  )?.tier1Days ?? 0,
-                  !!buildTierContext(s, day).rooms.get(
-                    dailySession(s, day)[0]?.roomId || "",
-                  )?.hasTier1,
-                ) || "Dnes stačí základ. Ostatné môže počkať."}
+              : tierHint(todayStreak.days, todayStreak.hasBasics) ||
+                "Dnes stačí základ. Ostatné môže počkať."}
           </p>
           {plannedFor(s, day).length || currentTasks(s, day).length ? (
             <div className="task-list">
@@ -655,6 +655,7 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
                 Pridať miestnosť
               </Button>
             </div>
+            <LevelOverview s={s} day={day} />
             <section className="card spaced">
               <HouseholdMap s={s} onSelect={setRoomId} />
             </section>
@@ -883,8 +884,10 @@ export function duplicateRoom(s: State, id: string, day: string) {
   if (!room) return;
   const newId = uid(),
     map = new Map<string, string>();
+  const copy = structuredClone(room);
+  delete copy.openPlan;
   s.rooms.push({
-    ...structuredClone(room),
+    ...copy,
     id: newId,
     name: room.name + " (kópia)",
     order: s.rooms.length,

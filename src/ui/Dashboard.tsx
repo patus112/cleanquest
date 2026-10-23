@@ -39,9 +39,9 @@ import {
   taskIsHeld,
 } from "../domain/scheduler";
 import {
-  buildTierContext,
   cleaningProgress,
   rescueHint,
+  streakFor,
   taskTier,
   tierHint,
 } from "../domain/tiers";
@@ -112,12 +112,9 @@ export default function Dashboard({
     [extraIndex, setExtraIndex] = useState(0),
     extra = options[extraIndex % Math.max(1, options.length)];
   const rhythm = useMemo(() => weekRhythm(s, day), [s, day]);
-  const roomDays = task
-    ? (buildTierContext(s, day).rooms.get(task.roomId)?.tier1Days ?? 0)
-    : 0;
-  const roomHasBasics = task
-    ? !!buildTierContext(s, day).rooms.get(task.roomId)?.hasTier1
-    : false;
+  const roomStreak = task ? streakFor(s, day, task.roomId) : undefined;
+  const roomDays = roomStreak?.days ?? 0;
+  const roomHasBasics = !!roomStreak?.hasBasics;
   const hint = rescue ? rescueHint : tierHint(roomDays, roomHasBasics);
   const suggestedTier = task
     ? taskTier(
