@@ -463,14 +463,24 @@ export function setRescue(s: State, on: boolean, now = new Date()) {
 }
 
 export function markBasicsOk(s: State, roomId: string, now = new Date()) {
-  if (!s.rooms.some((room) => room.id === roomId))
-    throw new Error("Miestnosť sa nenašla.");
+  const room = s.rooms.find((item) => item.id === roomId);
+  if (!room) throw new Error("Miestnosť sa nenašla.");
   const day = dayOf(s, now);
   ensurePlans(s, day, now.toISOString(), { sync: false });
   const plan = s.dailyPlans.find((item) => item.date === day);
   if (!plan) return;
-  if (!plan.basicsOk?.includes(roomId))
-    plan.basicsOk = [...(plan.basicsOk ?? []), roomId];
+  const ids =
+    room.openPlan && room.enabled
+      ? s.rooms
+          .filter(
+            (item) =>
+              item.enabled && item.openPlan && item.floorId === room.floorId,
+          )
+          .map((item) => item.id)
+      : [roomId];
+  const marked = new Set(plan.basicsOk ?? []);
+  for (const id of ids) marked.add(id);
+  plan.basicsOk = [...marked];
   syncTierSuggestions(s, day);
 }
 

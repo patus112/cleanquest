@@ -298,7 +298,7 @@ describe("binary persistence, safe restoration and revisions", () => {
     expect(canonicalState(saved)).toBe(canonicalState(s));
     expect(await db.table("photos").count()).toBe(2);
     expect((await repo.readSnapshot()).safety.revision).toBe(1);
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
   });
   it("preparation does not confirm a saved backup and unchanged reloads do not dirty data", async () => {
     const repo = repository();

@@ -113,6 +113,7 @@ const schema = z
         order: integer.min(0),
         enabled: z.boolean(),
         zones: z.array(title).max(100),
+        openPlan: z.boolean().optional(),
         photo: photo.optional(),
       }),
     ),

@@ -5,6 +5,8 @@ import { applyDailyBudget, complete, markBasicsOk, setRescue } from "../src/doma
 import { missingBasicTasks, templates } from "../src/data/templates";
 import {
   cleaningProgress,
+  levelOverview,
+  streakFor,
   taskTier,
   tierHint,
   TIER_UNLOCK_DAYS,
@@ -13,7 +15,11 @@ import {
 } from "../src/domain/tiers";
 import { shiftDay } from "../src/domain/calendar";
 import { xpFor, type Completion, type State, type Task } from "../src/domain/model";
-import { validateState } from "../src/persistence/validation";
+import {
+  exportBackup,
+  importBackup,
+  validateState,
+} from "../src/persistence/validation";
 
 function home() {
   const s = fixture(false);
@@ -63,6 +69,22 @@ const often: Partial<Task> = {
     anchor: day,
   },
 };
+function addRoom(
+  s: State,
+  id: string,
+  name: string,
+  patch: Partial<State["rooms"][number]> = {},
+) {
+  const room = {
+    ...s.rooms[0],
+    id,
+    name,
+    order: s.rooms.length,
+    ...patch,
+  };
+  s.rooms.push(room);
+  return room;
+}
 function did(s: State, taskId: string, when: string) {
   const source = s.tasks.find((item) => item.id === taskId)!;
   const completion: Completion = {
@@ -424,5 +446,182 @@ describe("cleaning tiers", () => {
     expect(s.dailyPlans.find((plan) => plan.date === day)?.timeBudget).toBe(30);
     expect(s.dailyPlans.find((plan) => plan.date === past)?.timeBudget).toBe(10);
     expect(s.weeks[0].required.map((item) => item.id)).toEqual(required);
+  });
+
+  it("holds Čisté until every frequent základ in the open space has 4 of 7", () => {
+    const s = home();
+    const living = s.rooms[0];
+    living.name = "Obývačka";
+    living.openPlan = true;
+    const cook = addRoom(s, "room-kitchen", "Kuchyňa", {
+      category: "kitchen",
+      openPlan: true,
+    });
+    const own = addRoom(s, "room-own", "Pracovňa");
+    delete own.openPlan;
+    const upstairs = addRoom(s, "room-up-open", "Horná kuchyňa", {
+      floorId: "floor-up",
+      openPlan: true,
+    });
+    const paused = addRoom(s, "room-paused", "Jedáleň", {
+      openPlan: true,
+      enabled: false,
+    });
+    const dishes = task(s, cook.id, "Uprať riad z drezu", often);
+    task(s, living.id, "Odložiť veci z podlahy", often);
+    const wipe = task(s, cook.id, "Utrieť jednu batériu");
+    const ownBasic = task(s, own.id, "Vyniesť jeden malý kôš", {
+      ...often,
+      id: "own-basic",
+    });
+    const ownWipe = task(s, own.id, "Utrieť jednu batériu", { id: "own-wipe" });
+    const upBasic = task(s, upstairs.id, "Uprať riad z drezu", {
+      ...often,
+      id: "up-basic",
+    });
+    const upWipe = task(s, upstairs.id, "Utrieť jednu batériu", {
+      id: "up-wipe",
+    });
+    task(s, paused.id, "Odložiť veci z podlahy", {
+      ...often,
+      id: "paused-basic",
+    });
+    for (let offset = 1; offset <= 4; offset++) {
+      const when = shiftDay(day, -offset);
+      did(s, dishes.id, when);
+      did(s, ownBasic.id, when);
+      did(s, upBasic.id, when);
+    }
+    did(s, ownBasic.id, day);
+    did(s, upBasic.id, day);
+    ensurePlans(s, day, now.toISOString());
+    const open = openTasks(s, day).map((item) => item.taskId);
+    expect(open).not.toContain(wipe.id);
+    expect(open).toContain(ownWipe.id);
+    expect(open).toContain(upWipe.id);
+    expect(streakFor(s, day, cook.id)).toEqual({ days: 0, hasBasics: true });
+    expect(streakFor(s, day, own.id).days).toBe(5);
+  });
+
+  it("lets Základ máme open the whole space and ignores a paused room", () => {
+    const s = home();
+    const living = s.rooms[0];
+    living.openPlan = true;
+    const cook = addRoom(s, "room-kitchen", "Kuchyňa", {
+      category: "kitchen",
+      openPlan: true,
+    });
+    addRoom(s, "room-paused", "Jedáleň", { openPlan: true, enabled: false });
+    const dishes = task(s, cook.id, "Uprať riad z drezu", often);
+    const floor = task(s, living.id, "Odložiť veci z podlahy", often);
+    task(s, "room-paused", "Odložiť veci z podlahy", {
+      ...often,
+      id: "paused-basic",
+    });
+    const wipe = task(s, cook.id, "Utrieť jednu batériu");
+    for (let offset = 1; offset <= 4; offset++) {
+      const when = shiftDay(day, -offset);
+      did(s, dishes.id, when);
+      did(s, floor.id, when);
+    }
+    ensurePlans(s, day, now.toISOString());
+    expect(openTasks(s, day).some((item) => item.taskId === wipe.id)).toBe(
+      false,
+    );
+    markBasicsOk(s, cook.id, now);
+    expect(
+      s.dailyPlans.find((plan) => plan.date === day)?.basicsOk ?? [],
+    ).toEqual(expect.arrayContaining([cook.id, living.id]));
+    expect(
+      s.dailyPlans.find((plan) => plan.date === day)?.basicsOk ?? [],
+    ).not.toContain("room-paused");
+    const opened = openTasks(s, day).map((item) => item.title);
+    expect(opened).not.toContain("Uprať riad z drezu");
+    expect(opened).not.toContain("Odložiť veci z podlahy");
+    expect(opened).toContain("Utrieť jednu batériu");
+    setRescue(s, true, now);
+    expect(
+      openTasks(s, day).some((item) => item.title === "Utrieť jednu batériu"),
+    ).toBe(false);
+  });
+
+  it("names the open space and what is still missing today", () => {
+    const s = home();
+    const living = s.rooms[0];
+    living.name = "Obývačka";
+    living.openPlan = true;
+    const cook = addRoom(s, "room-kitchen", "Kuchyňa", {
+      category: "kitchen",
+      openPlan: true,
+    });
+    const dishes = task(s, cook.id, "Uprať riad z drezu", often);
+    const floor = task(s, living.id, "Odložiť veci z podlahy", often);
+    const later = task(s, living.id, "Vyniesť jeden malý kôš", {
+      id: "later-bin",
+      nextDue: shiftDay(day, 2),
+    });
+    task(s, cook.id, "Utrieť jednu batériu");
+    for (let offset = 1; offset <= 4; offset++)
+      did(s, dishes.id, shiftDay(day, -offset));
+    const zone = () =>
+      levelOverview(s, day).find((group) => group.kind === "zone")!;
+    expect(zone().name).toBe("Prízemie – otvorený priestor");
+    expect(zone().level).toBe(1);
+    expect(zone().tier1Days).toBe(0);
+    expect(zone().note).toBe(
+      "Obývačka má základ menej ako 4 dni z posledných 7. Čisté príde, až keď ho bude mať celý priestor.",
+    );
+    expect(zone().note).not.toMatch(/zlyh|nespln|failed/i);
+    const livingView = zone().rooms.find((room) => room.name === "Obývačka")!;
+    expect(livingView.tier1Days).toBe(0);
+    expect(zone().rooms.find((room) => room.name === "Kuchyňa")?.tier1Days).toBe(
+      4,
+    );
+    expect(
+      livingView.basics.find((item) => item.id === floor.id)?.status,
+    ).toBe("waiting");
+    expect(
+      livingView.basics.find((item) => item.id === later.id)?.status,
+    ).toBe("later");
+    expect(
+      zone().rooms.find((room) => room.name === "Kuchyňa")?.basics[0]?.status,
+    ).toBe("waiting");
+    expect(
+      levelOverview(s, day).some((group) => group.name === "Horná izba"),
+    ).toBe(true);
+    for (let offset = 1; offset <= 4; offset++)
+      did(s, floor.id, shiftDay(day, -offset));
+    expect(zone().level).toBe(2);
+    expect(zone().tier1Days).toBe(4);
+    expect(zone().note).toBe(
+      "Dnes ešte základ. Potom sa môže ukázať ďalšia úroveň.",
+    );
+    did(s, floor.id, day);
+    expect(
+      zone()
+        .rooms.find((room) => room.name === "Obývačka")
+        ?.basics.find((item) => item.id === floor.id)?.status,
+    ).toBe("done");
+    ensurePlans(s, day, now.toISOString());
+    markBasicsOk(s, living.id, now);
+    expect(zone().note).toBe(
+      "Celý priestor má základ. Ďalšia úroveň sa môže ukázať.",
+    );
+    expect(zone().level).toBe(2);
+  });
+
+  it("round-trips the open-plan mark and still imports a backup without it", () => {
+    const s = fixture(false);
+    s.rooms[0].openPlan = true;
+    const json = exportBackup(s);
+    expect(JSON.parse(json).version).toBe(2);
+    expect(importBackup(json).data.rooms[0].openPlan).toBe(true);
+    const older = JSON.parse(json) as {
+      data: { rooms: { openPlan?: boolean }[] };
+    };
+    delete older.data.rooms[0].openPlan;
+    expect(importBackup(JSON.stringify(older)).data.rooms[0].openPlan).toBe(
+      undefined,
+    );
   });
 });

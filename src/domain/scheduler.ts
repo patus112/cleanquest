@@ -11,6 +11,8 @@ import {
 import {
   buildTierContext,
   canSuggest,
+  openedForSuggestions,
+  zoneOf,
   floorRank,
   taskTier,
   type TierContext,
@@ -62,7 +64,7 @@ export function pickTasks(
       featurePresent(room, object?.category || "") &&
       (!t.eventAt || Date.parse(t.eventAt) <= Date.now()) &&
       !!gate &&
-      canSuggest(gate, taskTier(t), rescue)
+      canSuggest(gate, taskTier(t), rescue, zoneOf(tiers, t.roomId))
     );
   });
   const baseScore = new Map<Task, number>();
@@ -251,8 +253,8 @@ export function syncTierSuggestions(s: State, day: Day): void {
   for (const task of picks) {
     if (scheduled.has(task.id) || task.duration > free) continue;
     const tier = taskTier(task);
-    const room = ctx.rooms.get(task.roomId);
-    if (tier > 1 && (rescue || !room?.openedToday)) continue;
+    if (tier > 1 && (rescue || !openedForSuggestions(ctx, task.roomId)))
+      continue;
     const occurrence = snapshot(s, task, day);
     if (tier === 1) plan.occurrences.unshift(occurrence);
     else plan.occurrences.push(occurrence);
@@ -272,7 +274,7 @@ function holds(
   if (!task) return false;
   const room = ctx.rooms.get(task.roomId);
   if (!room) return false;
-  return !canSuggest(room, taskTier(task), rescue);
+  return !canSuggest(room, taskTier(task), rescue, zoneOf(ctx, task.roomId));
 }
 export function taskIsHeld(s: State, day: Day, taskId: string): boolean {
   const task = s.tasks.find((item) => item.id === taskId);
@@ -280,7 +282,12 @@ export function taskIsHeld(s: State, day: Day, taskId: string): boolean {
   const ctx = buildTierContext(s, day, s.tasks);
   const room = ctx.rooms.get(task.roomId);
   if (!room) return false;
-  return !canSuggest(room, taskTier(task), !!s.settings[0]?.rescue);
+  return !canSuggest(
+    room,
+    taskTier(task),
+    !!s.settings[0]?.rescue,
+    zoneOf(ctx, task.roomId),
+  );
 }
 export const completedIds = (s: State) =>
   new Set(

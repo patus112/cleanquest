@@ -7,6 +7,7 @@ import {
   subscribeUpgrade,
 } from "../src/persistence/repository";
 import { tables, uid, type Occurrence, type State } from "../src/domain/model";
+import { fixture } from "./fixture";
 import { photoUrl, type StoredPhoto } from "../src/persistence/photos";
 import { taskTier } from "../src/domain/tiers";
 import { missingBasicTasks } from "../src/data/templates";
@@ -544,7 +545,7 @@ describe("schema upgrades from every previous version", () => {
       const { current, expected, images, snapshot } =
         await upgradeFrom(version);
       const saved = snapshot.state;
-      expect(current.verno).toBe(6);
+      expect(current.verno).toBe(7);
       expect(saved.households[0].timezone).toBe(
         version === 1 ? "Europe/Bratislava" : "Europe/Vienna",
       );
@@ -784,7 +785,7 @@ describe("schema upgrades from every previous version", () => {
     try {
       const newer = new Dexie(name);
       databases.push(newer);
-      newer.version(7).stores({ households: "id" });
+      newer.version(8).stores({ households: "id" });
       await Promise.race([
         newer.open(),
         new Promise((_, reject) =>
@@ -826,7 +827,7 @@ describe("schema upgrades from every previous version", () => {
       expect(current.isOpen()).toBe(false);
       holder.close();
       await opening;
-      expect(current.verno).toBe(6);
+      expect(current.verno).toBe(7);
       expect(await current.table("households").get("h")).toMatchObject({
         name: "Pozdržaný domov",
       });
@@ -836,5 +837,48 @@ describe("schema upgrades from every previous version", () => {
     } finally {
       unsubscribe();
     }
+  });
+  it("version 7 keeps an open-plan mark and completions", async () => {
+    const name = `open-plan-${uid()}`;
+    const legacy = createDatabase(name, 6);
+    databases.push(legacy);
+    const s = fixture(false);
+    s.rooms[0].openPlan = true;
+    s.completions.push({
+      id: "completion-open",
+      householdId: s.households[0].id,
+      taskId: s.tasks[0].id,
+      occurrenceId: "manual:kept",
+      title: s.tasks[0].title,
+      roomName: s.rooms[0].name,
+      duration: s.tasks[0].duration,
+      completedAt: "2026-10-04T12:00:00.000Z",
+      day: "2026-10-04",
+      type: "manual",
+      xp: 10,
+      previousDue: "2026-10-04",
+      nextDue: "2026-10-04",
+      undone: false,
+    });
+    await legacy.open();
+    try {
+      for (const table of tables)
+        if (s[table].length) await legacy.table(table).bulkPut(s[table]);
+    } finally {
+      legacy.close();
+    }
+    const current = createDatabase(name);
+    databases.push(current);
+    const saved = await new LocalRepository(current).read();
+    expect(current.verno).toBe(7);
+    expect(saved.rooms.find((room) => room.id === s.rooms[0].id)?.openPlan).toBe(
+      true,
+    );
+    expect(
+      saved.completions.find((item) => item.id === "completion-open"),
+    ).toMatchObject({ undone: false, day: "2026-10-04" });
+    expect(saved.tasks.map((task) => task.id).sort()).toEqual(
+      s.tasks.map((task) => task.id).sort(),
+    );
   });
 });

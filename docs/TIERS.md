@@ -1,6 +1,6 @@
 # Cleaning tiers
 
-CleanQuest suggests a reset before detail work. The rule is per room and is computed from tasks and completion history. It does not delete quests, rewrite a locked weekly reward, or block the rest of the home.
+CleanQuest suggests a reset before detail work. The rule is per room, unless several rooms on one floor are marked as one open space. It is computed from tasks and completion history. It does not delete quests, rewrite a locked weekly reward, or block the rest of the home.
 
 Constants live in `src/domain/tiers.ts`:
 
@@ -39,4 +39,19 @@ A quick task is tier 1 and one-off unless **Nechať aj ako opakovanú úlohu** i
 
 New weeks are filled with this order. A week that was already locked is not rebuilt. Details that were saved in it stay there, but they are hidden while the room's gate is closed. A basic that was not in the week can be added to today, up to the visible time budget. A higher tier is added to today only after a basic was completed or **Základ máme** was chosen today, and only when the streak allows it.
 
-The home card shows Základ → Čisté → Detaily for the task on screen. The current step is accented and marked `aria-current`. Earlier steps show a check. Later steps stay dashed. Ťažký deň keeps the current step on Základ.
+The home card shows Základ → Čisté → Detaily for the task on screen. The current step is accented and marked `aria-current`. Earlier steps show a check. Later steps stay dashed. Ťažký deň keeps the current step on Základ. On a shared space the home hint uses the quietest room, so one tidy kitchen does not look like the whole floor is ready.
+
+## Open-plan zones
+
+A room can be marked **Spojený priestor (otvorená kuchyňa, obývačka…)**. Every enabled room on the same floor with that mark shares one gate. The overview names it `{floor name} – otvorený priestor`, for example `Prízemie – otvorený priestor`. The mark is an optional `room.openPlan` flag. There is no zone table. Rooms without the mark, rooms on another floor, and paused rooms keep today's own gate. One marked room is a zone of one and behaves as a single room. Copying a room clears the mark, so the copy does not join the space with an empty history.
+
+For rooms in a zone:
+
+- The 7-day count is the smallest count among member rooms that have a frequent task of that tier.
+- Tier 2 unlocks only when every member with a frequent tier-1 task has 4 of the last 7 days. Tier 3 also needs every member with a frequent tier-2 task to meet that bar, and the tier-1 bar still holds. A room with no frequent task of that tier does not raise the bar.
+- Today, a higher tier stays hidden while any due tier-1 task in any room of the zone is unfinished.
+- **Základ máme** in any room of the zone marks the whole zone for today. It still does not fill the streak and does not turn **Ťažký deň** off.
+
+**Prehľad úrovní** on Úlohy → Miestnosti shows the current level (Základ, Čisté, or Detaily), `Základ X/7 dní`, and each basic task as hotové, dnes čaká, or dnes netreba. Detaily appears only when a tier-3 task exists and both bars are met. The words carry the meaning. Nothing says the week failed.
+
+Database version 7 adds no indexes and does not rewrite rows. `room.openPlan` is optional. Backup schema stays 2, so an older backup still imports and a new backup round-trips the mark.

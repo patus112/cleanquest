@@ -202,6 +202,7 @@ export default function Forms({
               enabled: f.has("enabled"),
               order: room?.order ?? s.rooms.length,
               zones: str(f, "zones").split("\n").filter(Boolean),
+              ...(f.has("openPlan") ? { openPlan: true as const } : {}),
               photo,
             };
             await done((state) => {
@@ -267,6 +268,18 @@ export default function Forms({
               />
             </Field>
           </div>
+          <label className="check">
+            <input
+              name="openPlan"
+              type="checkbox"
+              defaultChecked={!!room?.openPlan}
+            />
+            Spojený priestor (otvorená kuchyňa, obývačka…)
+          </label>
+          <small>
+            Miestnosti na rovnakom podlaží s týmto označením sú jeden priestor.
+            Ďalšia úroveň príde, až keď je základ v poriadku v každej z nich.
+          </small>
           <details className="room-config-section" open>
             <summary>Rozmery a povrchy</summary>
             <div className="form-grid">

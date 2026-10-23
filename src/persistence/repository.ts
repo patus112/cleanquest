@@ -16,7 +16,7 @@ import {
   decodePhoto,
   type StoredPhoto,
 } from "./photos";
-export const DATABASE_VERSION = 6;
+export const DATABASE_VERSION = 7;
 export type UpgradeNotice = "reload" | "blocked";
 const upgradeListeners = new Set<(notice: UpgradeNotice) => void>();
 export function subscribeUpgrade(listener: (notice: UpgradeNotice) => void) {
@@ -280,6 +280,9 @@ export function createDatabase(
         const additions = missingBasicTasks(s);
         if (additions.length) await tx.table("tasks").bulkAdd(additions);
       });
+  // No new indexes. `room.openPlan` is optional and already stored on the row,
+  // so the upgrade does not read or rewrite household data.
+  if (version >= 7) db.version(7).stores(storesFor(7));
   // Dexie already closes on versionchange, but with auto-open left on, so the
   // stale bundle can reopen an older schema and surface a version error.
   // Returning false skips that default. A blocked upgrade only logs a warning

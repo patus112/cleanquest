@@ -7,12 +7,12 @@ test("an open tab asks to reload when another connection upgrades the database",
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
   await expect(page.getByText("Začneme tvojím domovom.")).toBeVisible();
-  // Dexie persists schema versions multiplied by 10, so version 6 is native 60.
+  // Dexie persists schema versions multiplied by 10, so version 7 is native 70.
   // Opening one version higher asks the already-open tab to reload.
   await page.evaluate(
     () =>
       new Promise<void>((resolve, reject) => {
-        const request = indexedDB.open("cleanquest", 70);
+        const request = indexedDB.open("cleanquest", 80);
         request.onsuccess = () => {
           request.result.close();
           resolve();
