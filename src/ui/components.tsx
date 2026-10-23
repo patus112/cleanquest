@@ -18,7 +18,11 @@ import { optimizePhoto } from "../persistence/photos";
 import { TidyKit } from "./art";
 export interface ScreenProps {
   s: State;
-  run: (recipe: (s: State) => void, message?: string) => Promise<boolean>;
+  run: (
+    recipe: (s: State) => void,
+    message?: string,
+    onError?: (message: string) => void,
+  ) => Promise<boolean>;
   open: (modal: ModalType) => void;
   reminder?: ReactNode;
 }

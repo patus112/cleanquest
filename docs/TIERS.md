@@ -23,11 +23,11 @@ Every template has a `tier`. A stored task may omit it; the same title and templ
 For one room, on one day:
 
 - Tier 1 is always allowed.
-- Tier 2 is allowed when a **frequent** tier-1 task was completed on at least 4 distinct days in the last 7, **or** the room has no frequent tier-1 task.
-- Tier 3 is allowed only when that tier-1 bar still holds **and** a frequent tier-2 task was completed on at least 4 of those 7 days (or the room has no frequent tier-2 task).
-- Frequent means the task repeats every day or every other day (`unit: day` and interval at most 2). A weekly or rarer reset cannot happen four times in one week, so it does not create that bar. It still comes first on a day it is due.
+- Tier 2 is allowed when a **frequent** tier-1 task was completed on at least 4 distinct days in the last 7. If the room's basics are only weekly or rarer, tier 2 is allowed when each of those basics is done for the day it is due. Missing a frequent basic does not by itself open the next level.
+- Tier 3 is allowed only when that tier-1 bar still holds **and** tier 2 meets the same kind of bar: 4 of 7 when a frequent tier-2 task exists, otherwise each tier-2 task done on the day it is due. No tier-2 task at all does not block tier 3.
+- Frequent means the task repeats every day or every other day (`unit: day` and interval at most 2). A weekly or rarer reset cannot happen four times in one week, so it does not create that 4-day bar. It still comes first on a day it is due, and the room stays on Základ until it is done.
 - A day counts when that room has at least one completion of that tier which was not undone. The task must still exist; a deleted task cannot be classified. Today is included.
-- Even after the streak is open, a higher tier stays out of **today** while a due tier-1 task for that room is still unfinished. **Základ máme** marks that room's basics fine for today only. It does not count as doing the work, does not fill the streak, and does not turn **Ťažký deň** off. Remaining basics in that room step aside. The next suggested step is another room's basic while Ťažký deň is on, or the next level for that room when it is off and the streak allows it.
+- Even after the streak is open, a higher tier stays out of **today** while a due tier-1 task for that room is still unfinished. **Základ máme** marks that room's basics fine for today only. It does not count as doing the work, does not fill the streak, and does not turn **Ťažký deň** off. Remaining basics in that room step aside. For a frequent basic, the next level still waits for 4 of 7 days. For a weekly or rarer basic, **Základ máme** is enough to show the next level today, and the overview label stays on Základ until the work is actually done. The next suggested step is another room's basic while Ťažký deň is on, or the next level for that room when it is off and the bar allows it.
 - Skipping or postponing a basic does not hide other basics. It also does not release that room's details.
 - **Ťažký deň** is one switch (záchranný režim). Áno shows only tier 1. It does not erase the streak or the saved plan. Nie brings the other tiers back under the same rules. The home indicator stays on Základ while the switch is áno.
 - Within a day, every tier-1 task comes before tier 2 and tier 3. Equal tasks prefer the higher hygiene priority, then the lower floor (`floor.order`, so Prízemie is 0), then a shorter step.
@@ -48,11 +48,13 @@ A room can be marked **Spojený priestor (otvorená kuchyňa, obývačka…)**. 
 For rooms in a zone:
 
 - The 7-day count is the smallest count among member rooms that have a frequent task of that tier.
-- Tier 2 unlocks only when every member with a frequent tier-1 task has 4 of the last 7 days. Tier 3 also needs every member with a frequent tier-2 task to meet that bar, and the tier-1 bar still holds. A room with no frequent task of that tier does not raise the bar.
+- Tier 2 unlocks only when every member is ready: a frequent tier-1 member needs 4 of the last 7 days, and a member whose basics are only weekly or rarer needs each of those basics done on the day it is due. Tier 3 needs that tier-1 bar and the same kind of tier-2 bar. A hallway in the shared space uses this one gate. It does not keep a separate Detaily label.
 - Today, a higher tier stays hidden while any due tier-1 task in any room of the zone is unfinished.
 - **Základ máme** in any room of the zone marks the whole zone for today. It still does not fill the streak and does not turn **Ťažký deň** off.
 
-**Prehľad úrovní** on Úlohy → Miestnosti shows the current level (Základ, Čisté, or Detaily), `Základ X/7 dní`, and each basic task as hotové, dnes čaká, or dnes netreba. Each row has a button. Tapping it records a normal completion for today, including a task that was not due yet, within the usual rewarded-time limit. Tapping again undoes it. The level and the 7-day count update immediately. Detaily appears only when a tier-3 task exists and both bars are met. The words carry the meaning. Nothing says the week failed.
+**Prehľad úrovní** on Úlohy → Miestnosti shows the current level (Základ, Čisté, or Detaily), `Základ X/7 dní`, and each basic task as hotové, dnes čaká, or dnes netreba. The label stays on Základ while that room's bar is not met, including when the only basics are weekly or rarer and one of them still shows dnes čaká. Čisté or Detaily can show with a count under 4/7 only when those rarer tasks are already done for the day they were due, and the sentence under the label says so. A room with no základ stays labeled Základ.
+
+Each row has a button at least 44px tall. Tapping a task that is due today records a normal completion (DA, streak, and the 7-day count), even when it did not fit into today's minute block. Tapping a task that is not due yet is an early manual completion and still respects the rewarded-time limit. If the tap cannot finish, the reason appears on that row. Tapping again undoes it. The level and the 7-day count update immediately. Nothing says the week failed.
 
 **Nahradiť** stays on the same level or a lower one, basics first. It will not swap a základ for Čisté or Detaily, including while Ťažký deň is on or a shared space is still on Základ. A finished task does not offer it. If nothing else fits, the app says so instead of leaving the row unchanged with no explanation.
 

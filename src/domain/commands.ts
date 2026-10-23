@@ -403,6 +403,28 @@ export function replaceOccurrence(s: State, id: string, day: Day) {
   writeOccurrence(s, nextOther);
 }
 
+function markedToday(s: State, taskId: string, day: Day) {
+  return s.completions.some(
+    (item) => !item.undone && item.taskId === taskId && item.day === day,
+  );
+}
+
+/** A due základ that never fitted into the week still gets a normal completion. */
+function placeToday(s: State, task: Task, day: Day): Occurrence {
+  const plan = s.dailyPlans.find((item) => item.date === day);
+  if (!plan) throw new Error("Dnešný plán sa nepodarilo pripraviť.");
+  let occurrence = snapshot(s, task, day);
+  const ids = new Set(
+    s.dailyPlans.flatMap((item) => item.occurrences.map((row) => row.id)),
+  );
+  if (ids.has(occurrence.id)) occurrence = { ...occurrence, id: uid() };
+  plan.occurrences.unshift(occurrence);
+  return occurrence;
+}
+
+const basicNotRecorded =
+  "Tento základ sa teraz nepodarilo označiť. Skús to ešte raz.";
+
 /** Tick a základ from the room overview. A second tap undoes today. */
 export function toggleBasicToday(s: State, taskId: string, now = new Date()) {
   const task = s.tasks.find((item) => item.id === taskId);
@@ -417,29 +439,39 @@ export function toggleBasicToday(s: State, taskId: string, now = new Date()) {
     return;
   }
   ensurePlans(s, day, now.toISOString(), { sync: false });
-  const occurrence = s.dailyPlans
-    .flatMap((plan) => plan.occurrences)
-    .filter(
-      (item) =>
-        item.taskId === taskId &&
-        !s.completions.some(
-          (completion) =>
-            !completion.undone && completion.occurrenceId === item.id,
-        ),
-    )
-    .sort((a, b) => {
-      const aNow = a.date <= day ? 0 : 1;
-      const bNow = b.date <= day ? 0 : 1;
-      if (aNow !== bNow) return aNow - bNow;
-      return a.date < b.date ? -1 : 1;
-    })[0];
-  if (occurrence) {
-    complete(s, taskId, "required", occurrence.id, now, 60, {
-      allowEarly: true,
-    });
-    return;
+  const due = task.nextDue <= day;
+  if (due) {
+    const open = s.dailyPlans
+      .flatMap((plan) => plan.occurrences)
+      .filter(
+        (item) =>
+          item.taskId === taskId &&
+          !s.completions.some(
+            (completion) =>
+              !completion.undone && completion.occurrenceId === item.id,
+          ),
+      )
+      .sort((a, b) => {
+        const aNow = a.date <= day ? 0 : 1;
+        const bNow = b.date <= day ? 0 : 1;
+        if (aNow !== bNow) return aNow - bNow;
+        return a.date < b.date ? -1 : 1;
+      });
+    const chosen = open.find((item) => item.date <= day) ?? open[0];
+    if (chosen)
+      complete(s, taskId, "required", chosen.id, now, 60, { allowEarly: true });
+    // A full minute block used to refuse this as extra manual time and the
+    // reason sat off-screen. Due work is a normal completion either way.
+    if (!markedToday(s, taskId, day)) {
+      const created = placeToday(s, task, day);
+      complete(s, taskId, "required", created.id, now, 60, {
+        allowEarly: true,
+      });
+    }
+  } else {
+    complete(s, taskId, "manual", undefined, now, 60, { allowEarly: true });
   }
-  complete(s, taskId, "manual", undefined, now, 60, { allowEarly: true });
+  if (!markedToday(s, taskId, day)) throw new Error(basicNotRecorded);
 }
 export function saveTask(s: State, task: Task) {
   if (task.duration > 10 && !task.acceptedLong)
