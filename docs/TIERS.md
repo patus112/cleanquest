@@ -52,6 +52,8 @@ For rooms in a zone:
 - Today, a higher tier stays hidden while any due tier-1 task in any room of the zone is unfinished.
 - **Základ máme** in any room of the zone marks the whole zone for today. It still does not fill the streak and does not turn **Ťažký deň** off.
 
-**Prehľad úrovní** on Úlohy → Miestnosti shows the current level (Základ, Čisté, or Detaily), `Základ X/7 dní`, and each basic task as hotové, dnes čaká, or dnes netreba. Detaily appears only when a tier-3 task exists and both bars are met. The words carry the meaning. Nothing says the week failed.
+**Prehľad úrovní** on Úlohy → Miestnosti shows the current level (Základ, Čisté, or Detaily), `Základ X/7 dní`, and each basic task as hotové, dnes čaká, or dnes netreba. Each row has a button. Tapping it records a normal completion for today, including a task that was not due yet, within the usual rewarded-time limit. Tapping again undoes it. The level and the 7-day count update immediately. Detaily appears only when a tier-3 task exists and both bars are met. The words carry the meaning. Nothing says the week failed.
+
+**Nahradiť** stays on the same level or a lower one, basics first. It will not swap a základ for Čisté or Detaily, including while Ťažký deň is on or a shared space is still on Základ. A finished task does not offer it. If nothing else fits, the app says so instead of leaving the row unchanged with no explanation.
 
 Database version 7 adds no indexes and does not rewrite rows. `room.openPlan` is optional. Backup schema stays 2, so an older backup still imports and a new backup round-trips the mark.
