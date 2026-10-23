@@ -16,7 +16,14 @@ import {
   syncTierSuggestions,
 } from "./scheduler";
 import { balance, reconcile } from "./rewards";
-import { syncObjectPlanLocation } from "./rooms";
+import { featurePresent, syncObjectPlanLocation } from "./rooms";
+import {
+  buildTierContext,
+  canSuggest,
+  taskTier,
+  zoneOf,
+  type CleaningTier,
+} from "./tiers";
 export const dayOf = (s: State, now = new Date()) =>
   todayIn(s.households[0].timezone, now);
 export function complete(
@@ -26,6 +33,7 @@ export function complete(
   occurrenceId?: string,
   now = new Date(),
   cycleMinutes = 60,
+  options?: { allowEarly?: boolean },
 ) {
   const day = dayOf(s, now);
   ensurePlans(s, day, now.toISOString(), { sync: false });
@@ -50,12 +58,16 @@ export function complete(
     s.completions.some((c) => !c.undone && c.taskId === taskId && c.day === day)
   )
     throw new Error("Túto úlohu už máš dnes hotovú. Ďalšie opakovanie počká.");
-  if (mode !== "required" && (!task?.enabled || task.nextDue > day))
+  if (
+    mode !== "required" &&
+    (!task?.enabled || (task.nextDue > day && !options?.allowEarly))
+  )
     throw new Error("Táto úloha ešte nie je splatná.");
   if (task?.eventAt && Date.parse(task.eventAt) > now.getTime())
     throw new Error("Pranie ešte prebieha.");
   if (
     mode === "required" &&
+    !options?.allowEarly &&
     (occurrence!.date > day ||
       (occurrence!.deferredTo && occurrence!.deferredTo > day))
   )
@@ -236,25 +248,198 @@ export function postpone(s: State, id: string, date: Day) {
   if (date <= o.date) throw new Error("Vyber neskorší dátum.");
   o.deferredTo = date;
 }
+export const noReplacementMessage =
+  "Na tento krok teraz nemám inú úlohu rovnakej úrovne. Môžeš ho odložiť na zajtra.";
+
+function writeOccurrence(s: State, next: Occurrence) {
+  for (const plan of s.dailyPlans) {
+    const index = plan.occurrences.findIndex((item) => item.id === next.id);
+    if (index >= 0) plan.occurrences[index] = next;
+  }
+  for (const week of s.weeks) {
+    const index = week.required.findIndex((item) => item.id === next.id);
+    if (index >= 0) week.required[index] = structuredClone(next);
+  }
+}
+
+function occurrenceFromTask(base: Occurrence, task: Task, s: State): Occurrence {
+  return {
+    ...base,
+    taskId: task.id,
+    roomId: task.roomId,
+    roomName: s.rooms.find((room) => room.id === task.roomId)?.name || "Miestnosť",
+    objectId: task.objectId,
+    objectName: s.objects.find((object) => object.id === task.objectId)?.name,
+    title: task.title,
+    instructions: task.instructions,
+    duration: task.duration,
+    xp: xpFor(task.duration),
+  };
+}
+
+/** Another step she can do instead. Same level first. Never a higher level, so Ťažký deň and a zone cannot hide the result. */
+function chooseReplacement(
+  s: State,
+  old: Occurrence,
+  day: Day,
+): { kind: "task"; task: Task } | { kind: "swap"; occurrence: Occurrence } | undefined {
+  const settings = s.settings[0];
+  const rescue = !!settings?.rescue;
+  const source = s.tasks.find((task) => task.id === old.taskId);
+  const originalTier = taskTier(source ?? { title: old.title });
+  const ceiling = (rescue ? 1 : originalTier) as CleaningTier;
+  const budget = settings?.dailyBudget ?? old.duration;
+  const energy = settings?.energy ?? 3;
+  const ctx = buildTierContext(s, day);
+  const doneToday = new Set(
+    s.completions
+      .filter((completion) => !completion.undone && completion.day === day)
+      .map((completion) => completion.taskId),
+  );
+  const week = s.weeks.find(
+    (item) => item.start === weekStart(old.date) && item.end >= old.date,
+  );
+  const reserved = new Set<string>([
+    ...(week?.required.map((item) => item.taskId) ?? []),
+    ...s.dailyPlans.flatMap((plan) =>
+      plan.date >= (week?.start ?? old.date) && plan.date <= (week?.end ?? old.date)
+        ? plan.occurrences.map((item) => item.taskId)
+        : [],
+    ),
+  ]);
+  const eligible = (task: Task) => {
+    if (!task.enabled || task.id === old.taskId || doneToday.has(task.id))
+      return false;
+    if (task.duration > budget || task.energy > energy) return false;
+    const tier = taskTier(task);
+    if (tier > ceiling) return false;
+    const room = s.rooms.find((item) => item.id === task.roomId);
+    if (!room?.enabled) return false;
+    const object = task.objectId
+      ? s.objects.find((item) => item.id === task.objectId)
+      : undefined;
+    if (task.objectId && object?.accessibility !== "safe") return false;
+    if (!featurePresent(room, object?.category || "")) return false;
+    if (task.eventAt && Date.parse(task.eventAt) > Date.now()) return false;
+    const gate = ctx.rooms.get(task.roomId);
+    if (!gate || !canSuggest(gate, tier, rescue, zoneOf(ctx, task.roomId)))
+      return false;
+    return true;
+  };
+  const rank = (task: Task) => {
+    const tier = taskTier(task);
+    return [
+      tier === originalTier ? 0 : 1,
+      task.duration > old.duration ? 1 : 0,
+      task.nextDue <= day ? 0 : 1,
+      tier,
+      Math.abs(task.duration - old.duration),
+      -task.priority,
+    ];
+  };
+  const compare = (a: Task, b: Task) => {
+    const left = rank(a);
+    const right = rank(b);
+    for (let index = 0; index < left.length; index++)
+      if (left[index] !== right[index]) return left[index] - right[index];
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  };
+  const backlog = s.tasks.filter((task) => eligible(task) && !reserved.has(task.id));
+  backlog.sort(compare);
+  if (backlog[0]) return { kind: "task", task: backlog[0] };
+  const swaps = (week?.required ?? []).filter((item) => {
+    if (item.id === old.id || item.date === old.date) return false;
+    const task = s.tasks.find((candidate) => candidate.id === item.taskId);
+    return !!task && eligible(task);
+  });
+  swaps.sort((a, b) => {
+    const taskA = s.tasks.find((task) => task.id === a.taskId)!;
+    const taskB = s.tasks.find((task) => task.id === b.taskId)!;
+    const byTask = compare(taskA, taskB);
+    if (byTask) return byTask;
+    const futureA = a.date >= old.date ? 0 : 1;
+    const futureB = b.date >= old.date ? 0 : 1;
+    if (futureA !== futureB) return futureA - futureB;
+    return a.date < b.date ? -1 : 1;
+  });
+  if (swaps[0]) return { kind: "swap", occurrence: swaps[0] };
+  return undefined;
+}
+
 export function replaceOccurrence(s: State, id: string, day: Day) {
-  const plan = s.dailyPlans.find((p) => p.occurrences.some((o) => o.id === id));
-  const old = plan?.occurrences.find((o) => o.id === id);
-  if (!old || !plan) return;
-  if (s.completions.some((c) => c.occurrenceId === id && !c.undone))
-    throw new Error("Hotovú úlohu nemožno nahradiť.");
-  const excluded = s.weeks
-    .filter((w) => w.start === weekStart(old.date))
-    .flatMap((w) => w.required.map((o) => o.taskId));
-  const candidate = pickTasks(s, day, s.tasks, old.duration, excluded)[0];
-  if (!candidate) throw new Error("Momentálne nemáme vhodnú náhradu.");
-  const next = snapshot(s, candidate, old.date);
-  next.id = old.id;
-  // Replacement retains the agreed time and required occurrence identity.
-  plan.occurrences[plan.occurrences.indexOf(old)] = next;
-  const week = s.weeks.find((w) => w.required.some((o) => o.id === id));
-  if (week)
-    week.required[week.required.findIndex((o) => o.id === id)] =
-      structuredClone(next);
+  const plan = s.dailyPlans.find((item) =>
+    item.occurrences.some((occurrence) => occurrence.id === id),
+  );
+  const old = plan?.occurrences.find((occurrence) => occurrence.id === id);
+  if (!old || !plan)
+    throw new Error("Túto úlohu v pláne nevidím.");
+  if (s.completions.some((completion) => completion.occurrenceId === id && !completion.undone))
+    throw new Error("Túto úlohu už máš hotovú. Nahradiť ju netreba.");
+  const choice = chooseReplacement(s, old, day);
+  if (!choice) throw new Error(noReplacementMessage);
+  if (choice.kind === "task") {
+    const source = s.tasks.find((task) => task.id === old.taskId);
+    writeOccurrence(s, occurrenceFromTask(old, choice.task, s));
+    const stillThere = s.weeks
+      .filter((week) => week.start === weekStart(old.date))
+      .some((week) =>
+        week.required.some(
+          (item) => item.taskId === old.taskId && item.id !== old.id,
+        ),
+      );
+    if (source && !stillThere && source.nextDue <= day)
+      source.nextDue = nextOccurrence(source.recurrence, day);
+    return;
+  }
+  const other = s.dailyPlans
+    .flatMap((item) => item.occurrences)
+    .find((item) => item.id === choice.occurrence.id);
+  const otherTask = s.tasks.find((task) => task.id === choice.occurrence.taskId);
+  const oldTask = s.tasks.find((task) => task.id === old.taskId);
+  if (!other || !otherTask || !oldTask) throw new Error(noReplacementMessage);
+  const nextOld = occurrenceFromTask(old, otherTask, s);
+  const nextOther = occurrenceFromTask(other, oldTask, s);
+  writeOccurrence(s, nextOld);
+  writeOccurrence(s, nextOther);
+}
+
+/** Tick a základ from the room overview. A second tap undoes today. */
+export function toggleBasicToday(s: State, taskId: string, now = new Date()) {
+  const task = s.tasks.find((item) => item.id === taskId);
+  if (!task || taskTier(task) !== 1)
+    throw new Error("Tento základ sa nenašiel.");
+  const day = dayOf(s, now);
+  const existing = s.completions.find(
+    (item) => !item.undone && item.taskId === taskId && item.day === day,
+  );
+  if (existing) {
+    undo(s, existing.id);
+    return;
+  }
+  ensurePlans(s, day, now.toISOString(), { sync: false });
+  const occurrence = s.dailyPlans
+    .flatMap((plan) => plan.occurrences)
+    .filter(
+      (item) =>
+        item.taskId === taskId &&
+        !s.completions.some(
+          (completion) =>
+            !completion.undone && completion.occurrenceId === item.id,
+        ),
+    )
+    .sort((a, b) => {
+      const aNow = a.date <= day ? 0 : 1;
+      const bNow = b.date <= day ? 0 : 1;
+      if (aNow !== bNow) return aNow - bNow;
+      return a.date < b.date ? -1 : 1;
+    })[0];
+  if (occurrence) {
+    complete(s, taskId, "required", occurrence.id, now, 60, {
+      allowEarly: true,
+    });
+    return;
+  }
+  complete(s, taskId, "manual", undefined, now, 60, { allowEarly: true });
 }
 export function saveTask(s: State, task: Task) {
   if (task.duration > 10 && !task.acceptedLong)

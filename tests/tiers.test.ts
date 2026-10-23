@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { fixture, day, makeTask, now } from "./fixture";
 import { pickTasks, dailySession, ensurePlans, openTasks } from "../src/domain/scheduler";
-import { applyDailyBudget, complete, markBasicsOk, setRescue } from "../src/domain/commands";
+import {
+  applyDailyBudget,
+  complete,
+  markBasicsOk,
+  noReplacementMessage,
+  replaceOccurrence,
+  setRescue,
+  toggleBasicToday,
+} from "../src/domain/commands";
 import { missingBasicTasks, templates } from "../src/data/templates";
 import {
   cleaningProgress,
@@ -608,6 +616,155 @@ describe("cleaning tiers", () => {
       "Celý priestor má základ. Ďalšia úroveň sa môže ukázať.",
     );
     expect(zone().level).toBe(2);
+  });
+
+  it("replaces a short basic with another basic instead of a detail Ťažký deň would hide", () => {
+    const s = home();
+    s.settings[0].dailyBudget = 15;
+    s.settings[0].rescue = true;
+    const living = s.rooms[0];
+    const short = task(s, living.id, "Očistiť WC misu kefou", {
+      id: "short-basic",
+      duration: 2,
+    });
+    const spare = task(s, living.id, "Odložiť veci z podlahy", {
+      ...often,
+      id: "spare-basic",
+      duration: 5,
+      nextDue: shiftDay(day, 30),
+    });
+    const wipe = task(s, living.id, "Utrieť jednu batériu", {
+      id: "wipe",
+      duration: 2,
+    });
+    ensurePlans(s, day, now.toISOString());
+    const today = s.dailyPlans.find((plan) => plan.date === day)!;
+    const slot = today.occurrences.find((item) => item.taskId === short.id)!;
+    expect(slot).toBeTruthy();
+    replaceOccurrence(s, slot.id, day);
+    const titles = openTasks(s, day).map((item) => item.title);
+    expect(titles).toContain(spare.title);
+    expect(titles).not.toContain(wipe.title);
+    expect(titles).not.toContain(short.title);
+    expect(s.weeks[0].required.find((item) => item.id === slot.id)?.taskId).toBe(
+      spare.id,
+    );
+  });
+
+  it("keeps a zone on základ when replacing, and explains when nothing else fits", () => {
+    const s = home();
+    s.settings[0].dailyBudget = 15;
+    const living = s.rooms[0];
+    living.openPlan = true;
+    const cook = addRoom(s, "room-kitchen", "Kuchyňa", {
+      category: "kitchen",
+      openPlan: true,
+    });
+    const dishes = task(s, cook.id, "Uprať riad z drezu", {
+      ...often,
+      id: "dishes",
+      duration: 2,
+    });
+    task(s, living.id, "Odložiť veci z podlahy", often);
+    const spare = task(s, cook.id, "Vyniesť jeden malý kôš", {
+      id: "spare-bin",
+      duration: 5,
+      nextDue: shiftDay(day, 30),
+    });
+    const wipe = task(s, cook.id, "Utrieť jednu batériu", {
+      ...often,
+      id: "zone-wipe",
+      duration: 2,
+    });
+    for (let offset = 1; offset <= 4; offset++)
+      did(s, dishes.id, shiftDay(day, -offset));
+    ensurePlans(s, day, now.toISOString());
+    const slot = s.dailyPlans
+      .find((plan) => plan.date === day)!
+      .occurrences.find((item) => item.taskId === dishes.id)!;
+    replaceOccurrence(s, slot.id, day);
+    const titles = openTasks(s, day).map((item) => item.title);
+    expect(titles).toContain(spare.title);
+    expect(titles).not.toContain(wipe.title);
+  });
+
+  it("says so when no same-level task can take the place", () => {
+    const s = home();
+    s.tasks = [];
+    s.settings[0].dailyBudget = 15;
+    const only = task(s, s.rooms[0].id, "Očistiť WC misu kefou", {
+      id: "only-basic",
+      duration: 2,
+    });
+    task(s, s.rooms[0].id, "Utrieť jednu batériu", {
+      id: "only-wipe",
+      duration: 2,
+    });
+    ensurePlans(s, day, now.toISOString());
+    const slot = s.dailyPlans
+      .find((plan) => plan.date === day)!
+      .occurrences.find((item) => item.taskId === only.id)!;
+    expect(() => replaceOccurrence(s, slot.id, day)).toThrow(
+      noReplacementMessage,
+    );
+    expect(slot.title).toBe(only.title);
+  });
+
+  it("ticks a základ from the overview, including one that was not due yet", () => {
+    const s = home();
+    s.settings[0].dailyBudget = 15;
+    const due = task(s, s.rooms[0].id, "Odložiť veci z podlahy", often);
+    const later = task(s, s.rooms[0].id, "Vyniesť jeden malý kôš", {
+      id: "later-bin",
+      nextDue: shiftDay(day, 9),
+    });
+    ensurePlans(s, day, now.toISOString());
+    toggleBasicToday(s, due.id, now);
+    expect(
+      s.completions.some(
+        (item) => !item.undone && item.taskId === due.id && item.day === day,
+      ),
+    ).toBe(true);
+    expect(s.completions.find((item) => item.taskId === due.id)?.xp).toBeGreaterThan(
+      0,
+    );
+    const after = levelOverview(s, day)
+      .flatMap((group) => group.rooms)
+      .flatMap((room) => room.basics);
+    expect(after.find((item) => item.id === due.id)?.status).toBe("done");
+    expect(
+      levelOverview(s, day).find((group) => group.kind === "room")?.tier1Days,
+    ).toBeGreaterThan(0);
+    toggleBasicToday(s, due.id, now);
+    expect(
+      s.completions.find((item) => item.taskId === due.id)?.undone,
+    ).toBe(true);
+    expect(after && levelOverview(s, day)
+      .flatMap((group) => group.rooms)
+      .flatMap((room) => room.basics)
+      .find((item) => item.id === due.id)?.status).toBe("waiting");
+    toggleBasicToday(s, later.id, now);
+    const early = s.completions.find(
+      (item) => item.taskId === later.id && !item.undone,
+    );
+    expect(early?.type).toBe("manual");
+    expect(early?.day).toBe(day);
+    expect(
+      levelOverview(s, day)
+        .flatMap((group) => group.rooms)
+        .flatMap((room) => room.basics)
+        .find((item) => item.id === later.id)?.status,
+    ).toBe("done");
+    s.settings[0].dailyBudget = 5;
+    s.dailyPlans.find((plan) => plan.date === day)!.timeBudget = 5;
+    const crowded = task(s, s.rooms[0].id, "Očistiť WC misu kefou", {
+      id: "crowded",
+      duration: 5,
+      nextDue: shiftDay(day, 12),
+    });
+    expect(() => toggleBasicToday(s, crowded.id, now)).toThrow(
+      /odmeňované úlohy/,
+    );
   });
 
   it("round-trips the open-plan mark and still imports a backup without it", () => {

@@ -1,5 +1,7 @@
 import type { Day, State } from "../domain/model";
+import { toggleBasicToday } from "../domain/commands";
 import { levelOverview, tierLabels } from "../domain/tiers";
+import type { ScreenProps } from "./components";
 
 const statusLabel = {
   done: "hotové",
@@ -8,7 +10,15 @@ const statusLabel = {
 } as const;
 
 /** What counts as Základ, and whether today is already covered. */
-export function LevelOverview({ s, day }: { s: State; day: Day }) {
+export function LevelOverview({
+  s,
+  day,
+  run,
+}: {
+  s: State;
+  day: Day;
+  run: ScreenProps["run"];
+}) {
   const groups = levelOverview(s, day);
   if (!groups.length) return null;
   return (
@@ -39,9 +49,28 @@ export function LevelOverview({ s, day }: { s: State; day: Day }) {
                 <ul aria-label={`Základ v ${room.name}`}>
                   {room.basics.map((item) => (
                     <li key={item.id}>
-                      <span aria-hidden="true">
-                        {item.status === "done" ? "✓" : "○"}
-                      </span>
+                      <button
+                        type="button"
+                        className={`level-toggle${item.status === "done" ? " is-done" : ""}`}
+                        aria-pressed={item.status === "done"}
+                        aria-label={
+                          item.status === "done"
+                            ? `Vrátiť: ${item.title}`
+                            : `Označiť ako hotové: ${item.title}`
+                        }
+                        onClick={() =>
+                          void run(
+                            (state) => toggleBasicToday(state, item.id),
+                            item.status === "done"
+                              ? "Vrátené. Tento základ znova čaká."
+                              : "Hotovo. Tento základ sa počíta.",
+                          )
+                        }
+                      >
+                        <span aria-hidden="true">
+                          {item.status === "done" ? "✓" : "○"}
+                        </span>
+                      </button>
                       <span className="level-task-title">{item.title}</span>
                       <span className="level-task-status">
                         {statusLabel[item.status]}

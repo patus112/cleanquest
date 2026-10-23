@@ -655,7 +655,7 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
                 Pridať miestnosť
               </Button>
             </div>
-            <LevelOverview s={s} day={day} />
+            <LevelOverview s={s} day={day} run={run} />
             <section className="card spaced">
               <HouseholdMap s={s} onSelect={setRoomId} />
             </section>
