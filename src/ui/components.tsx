@@ -37,7 +37,7 @@ export type ModalType =
   | { kind: "household" }
   | { kind: "redeem"; wishId?: string }
   | { kind: "wish"; id?: string }
-  | { kind: "focus" }
+  | { kind: "focus"; taskId?: string }
   | { kind: "location"; taskId: string; occurrenceId?: string }
   | { kind: "split"; id: string }
   | {

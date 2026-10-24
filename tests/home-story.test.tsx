@@ -72,7 +72,8 @@ describe("Domov tells one story", () => {
     expect(story.headline).toBe("Dnešný cieľ splnený");
     expect(story.usedMinutes).toBe(30);
     expect(story.goalMinutes).toBe(30);
-    expect(story.reminderLine).toBe("Dnešný cieľ splnený 🎉");
+    expect(story.detail).toBe("Ak máš chuť, môžeš pokračovať bonusom.");
+    expect(story.reminderLine).toBeNull();
     expect(collectDailyReminders(state, defaultSafety(), now).line).toBe(
       story.reminderLine,
     );
@@ -99,7 +100,10 @@ describe("Domov tells one story", () => {
     expect(screen.queryByText("malých krokov")).toBeNull();
     expect(screen.queryByText(/zostáva \d+/)).toBeNull();
     expect(screen.queryByText(new RegExp(`/${open}`))).toBeNull();
-    expect(screen.getByRole("button", { name: /Bonus ·/ })).toBeVisible();
+    expect(screen.getAllByText(story.detail).length).toBeGreaterThan(0);
+    expect(screen.getByText("bez bodov")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Hotovo" })).toBeVisible();
+    expect(screen.queryByText("Na dnes stačí. Pokračujeme zajtra.")).toBeNull();
   });
 
   it("shows minute progress while the goal is still open", () => {

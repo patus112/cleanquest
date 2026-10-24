@@ -83,7 +83,7 @@ describe("quick task", () => {
     ).toBe(false);
   });
 
-  it("refuses another rewarded quick task when today's time is full", () => {
+  it("records a quick task already done with no points when today's time is full", () => {
     const s = fixture();
     s.completions.push({
       id: "full",
@@ -101,16 +101,21 @@ describe("quick task", () => {
       nextDue: day,
       undone: false,
     });
-    expect(() =>
-      addQuickTask(
-        s,
-        { title: "Ešte jedna vec", roomId: s.rooms[0].id, duration: 5 },
-        "done",
-        now,
-      ),
-    ).toThrow(/body sú pokope/);
-    expect(s.completions.some((item) => item.title === "Ešte jedna vec")).toBe(
-      false,
+    const before = s.completions
+      .filter((item) => !item.undone)
+      .reduce((sum, item) => sum + item.xp, 0);
+    addQuickTask(
+      s,
+      { title: "Ešte jedna vec", roomId: s.rooms[0].id, duration: 5 },
+      "done",
+      now,
     );
+    const saved = s.completions.find((item) => item.title === "Ešte jedna vec");
+    expect(saved).toMatchObject({ undone: false, xp: 0, day });
+    expect(
+      s.completions
+        .filter((item) => !item.undone)
+        .reduce((sum, item) => sum + item.xp, 0),
+    ).toBe(before);
   });
 });

@@ -531,11 +531,19 @@ describe("DA, rewards and undo", () => {
     expect(balance(s)).toBe(0);
     expect(s.bonuses).toHaveLength(1);
   });
-  it("manual DA is bounded by daily budget", () => {
+  it("manual DA stays bounded and the step is still saved", () => {
     const s = fixture();
     finish(s);
-    const t = extraOptions(s, day)[0];
-    expect(() => complete(s, t.id, "manual", undefined, now)).toThrow();
+    const xp = totalXp(s);
+    const t = makeTask(s, { id: "over-budget", duration: 5, nextDue: day });
+    s.tasks.push(t);
+    complete(s, t.id, "manual", undefined, now);
+    expect(s.completions.at(-1)).toMatchObject({
+      taskId: t.id,
+      xp: 0,
+      undone: false,
+    });
+    expect(totalXp(s)).toBe(xp);
   });
 });
 describe("extra energy", () => {
@@ -550,11 +558,13 @@ describe("extra energy", () => {
     const nextMonday = new Date("2026-10-12T12:00:00Z");
     for (const o of s.weeks[1].required)
       complete(s, o.taskId, "required", o.id, nextMonday);
-    const offered = extraOptions(s, "2026-10-12")[0],
+    const offered = extraOptions(s, "2026-10-12").find((task) =>
+        previousWeek.required.some((item) => item.taskId === task.id),
+      ),
       xp = totalXp(s),
       cash = balance(s);
-    expect(previousWeek.required.map((o) => o.taskId)).toContain(offered.id);
-    complete(s, offered.id, "extra", undefined, nextMonday);
+    expect(offered).toBeTruthy();
+    complete(s, offered!.id, "extra", undefined, nextMonday);
     expect(s.completions.at(-1)).toMatchObject({
       type: "extra",
       xp: 0,
@@ -583,29 +593,45 @@ describe("extra energy", () => {
     for (let i = 0; i < 2; i++) {
       const t = extraOptions(s, day)[0];
       complete(s, t.id, "extra", undefined, now);
-      expect(s.tasks.find((x) => x.id === t.id)!.nextDue).toBe("2026-10-12");
+      expect(s.tasks.find((x) => x.id === t.id)!.lastCompleted).toBe(day);
+      expect(s.tasks.find((x) => x.id === t.id)!.nextDue > day).toBe(true);
     }
     expect(totalXp(s)).toBe(xp);
     expect(balance(s)).toBe(cash);
     expect(completedIds(s).size).toBe(count);
-    expect(() =>
-      complete(s, extraOptions(s, day)[0].id, "extra", undefined, now),
-    ).toThrow("Na dnes stačí");
+    const third = extraOptions(s, day)[0];
+    complete(s, third.id, "extra", undefined, now);
+    expect(s.completions.filter((item) => item.type === "extra")).toHaveLength(
+      3,
+    );
+    expect(s.completions.at(-1)?.xp).toBe(0);
+    expect(totalXp(s)).toBe(xp);
   });
-  it("replacement does not bypass limits", () => {
+  it("keeps offering bonuses after two are already written", () => {
     const s = fixture();
     finish(s);
     const choices = extraOptions(s, day);
     complete(s, choices[1].id, "extra", undefined, now);
     complete(s, choices[2].id, "extra", undefined, now);
-    expect(() => complete(s, choices[0].id, "extra", undefined, now)).toThrow();
+    complete(s, choices[0].id, "extra", undefined, now);
+    expect(
+      s.completions.filter((item) => item.type === "extra" && !item.undone),
+    ).toHaveLength(3);
   });
-  it("rejects extras above five minutes", () => {
+  it("records a bonus longer than five minutes with no points", () => {
     const s = fixture();
     finish(s);
     const t = makeTask(s, { duration: 6 });
     s.tasks.push(t);
-    expect(() => complete(s, t.id, "extra", undefined, now)).toThrow();
+    const xp = totalXp(s);
+    complete(s, t.id, "extra", undefined, now);
+    expect(s.completions.at(-1)).toMatchObject({
+      type: "extra",
+      xp: 0,
+      duration: 6,
+      title: t.title,
+    });
+    expect(totalXp(s)).toBe(xp);
   });
 });
 describe("household improvements and laundry", () => {

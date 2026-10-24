@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { complete } from "../src/domain/commands";
+import { totalXp } from "../src/domain/rewards";
 import { xpFor, type Completion } from "../src/domain/model";
 import {
   todayPace,
@@ -62,10 +63,10 @@ describe("today and week progress", () => {
     expect(pace.timeFull).toBe(true);
     expect(pace.usedMinutes).toBe(10);
     expect(pace.todayXp).toBe(xpFor(10));
-    expect(pace.line).toBe("Dnešný cieľ splnený 🎉");
-    expect(pace.line).not.toContain("29");
+    expect(pace.line).toBeNull();
+    expect(pace.goalMet).toBe(true);
     const items = collectDailyReminders(state, defaultSafety(), now);
-    expect(items.line).toBe("Dnešný cieľ splnený 🎉");
+    expect(items.line).toBeNull();
     expect(JSON.stringify(items)).not.toMatch(/zostáva|týždňa|steps|overdue/);
   });
 
@@ -84,20 +85,24 @@ describe("today and week progress", () => {
     expect(pace.timeFull).toBe(false);
     expect(pace.goalMet).toBe(true);
     expect(pace.todayXp).toBe(10);
-    expect(pace.line).toBe("Dnešný cieľ splnený 🎉");
+    expect(pace.line).toBeNull();
+    expect(pace.goalMet).toBe(true);
   });
 
-  it("refuses a further manual reward instead of saving it without points", () => {
+  it("records a further manual step with no points once the block is full", () => {
     const state = fixture();
     state.completions.push(filled(state, 10));
     const loose = makeTask(state, { id: "loose", duration: 3, nextDue: day });
     state.tasks.push(loose);
-    const before = state.completions.length;
-    expect(() => complete(state, loose.id, "manual", undefined, now)).toThrow(
-      /Dnešné body sú pokope/,
-    );
-    expect(state.completions).toHaveLength(before);
-    expect(state.completions.some((item) => item.xp === 0)).toBe(false);
+    const before = totalXp(state);
+    complete(state, loose.id, "manual", undefined, now);
+    expect(state.completions.at(-1)).toMatchObject({
+      taskId: "loose",
+      type: "manual",
+      xp: 0,
+      undone: false,
+    });
+    expect(totalXp(state)).toBe(before);
   });
 
   it("counts weekly reward steps, not a DA target", () => {

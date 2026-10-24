@@ -185,7 +185,7 @@ export default function App() {
             previous.completions.some((old) => old.id === item.id && !old.undone),
         );
         if (reverted) setAward(null);
-        else if (gained > 0)
+        else if (added.length > 0)
           setAward({
             xp: gained,
             from: totalXp(previous),

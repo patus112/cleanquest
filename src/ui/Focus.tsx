@@ -11,11 +11,67 @@ import { shiftDay } from "../domain/calendar";
 import { dailySession } from "../domain/scheduler";
 import { TaskLocation } from "./RoomVisual";
 import { SunnyWindow } from "./art";
-export default function Focus({ s, run, open }: ScreenProps) {
+export default function Focus({
+  s,
+  run,
+  open,
+  taskId,
+}: ScreenProps & { taskId?: string }) {
   const [feedback, setFeedback] = useState(false),
     [cycle, setCycle] = useState(60);
   const day = dayOf(s),
-    task = dailySession(s, day)[0];
+    session = dailySession(s, day)[0],
+    bonus = taskId ? s.tasks.find((item) => item.id === taskId) : undefined;
+  if (bonus) {
+    const room = s.rooms.find((item) => item.id === bonus.roomId);
+    return (
+      <Dialog title="Bonus" onClose={() => open(null)}>
+        {feedback ? (
+          <div className="focus">
+            <div className="done-moment">
+              <SunnyWindow className="done-art" />
+              <div className="success-circle">
+                <Check size={28} />
+              </div>
+            </div>
+            <h2>Bonus je zapísaný.</h2>
+            <p>Body na dnes už máš. Ďalší bonus môžeš vziať, keď budeš chcieť.</p>
+            <Button onClick={() => open(null)}>Späť domov</Button>
+          </div>
+        ) : (
+          <div className="focus">
+            <span className="tag">{room?.name || "Miestnosť"}</span>
+            <h2>{bonus.title}</h2>
+            <div className="task-meta">
+              <span>
+                <Clock size={16} />
+                {bonus.duration} min
+              </span>
+              <span>bez bodov</span>
+            </div>
+            <p>{bonus.instructions}</p>
+            <Button
+              onClick={() =>
+                void run(
+                  (state) => complete(state, bonus.id, "extra"),
+                  "Bonus zapísaný, body na dnes už máš",
+                ).then((ok) => {
+                  if (ok) setFeedback(true);
+                })
+              }
+            >
+              <Check size={22} />
+              Mám hotovo
+            </Button>
+            <Button variant="ghost" onClick={() => open(null)}>
+              Späť
+            </Button>
+          </div>
+        )}
+      </Dialog>
+    );
+  }
+  const task = session;
   return (
     <Dialog title="Len jedna vec" onClose={() => open(null)}>
       {feedback ? (

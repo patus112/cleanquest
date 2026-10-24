@@ -11,7 +11,6 @@ import { nextOccurrence, todayIn, weekStart, shiftDay } from "./calendar";
 import {
   currentTasks,
   ensurePlans,
-  pickTasks,
   snapshot,
   syncTierSuggestions,
 } from "./scheduler";
@@ -76,28 +75,19 @@ export function complete(
   if (mode === "manual") {
     const scheduled = currentTasks(s, day).find((o) => o.taskId === taskId);
     if (scheduled)
-      return complete(s, taskId, "required", scheduled.id, now, cycleMinutes);
-    const used = s.completions
-      .filter((c) => !c.undone && c.day === day && c.type !== "extra")
-      .reduce((n, c) => n + c.duration, 0);
-    const budget = s.dailyPlans.find((p) => p.date === day)!.timeBudget;
-    if (used + task!.duration > budget)
-      throw new Error(
-        "Dnešné body sú pokope. Tento krok dnes ostáva na pokoji a body už nepribúdajú.",
+      return complete(
+        s,
+        taskId,
+        "required",
+        scheduled.id,
+        now,
+        cycleMinutes,
+        options,
       );
   }
-  const extras = s.completions.filter(
-    (c) => !c.undone && c.type === "extra" && c.day === day,
-  );
   if (mode === "extra") {
     if (!todayPace(s, now).goalMet)
       throw new Error("Najprv dokonči svoj denný plán.");
-    if (
-      extras.length >= 2 ||
-      extras.reduce((n, c) => n + c.duration, 0) + (task?.duration || 0) > 10 ||
-      (task?.duration || 0) > 5
-    )
-      throw new Error("Na dnes stačí. Pokračujeme zajtra.");
     if (
       s.completions.some(
         (c) => !c.undone && c.day === day && c.taskId === taskId,
@@ -119,6 +109,15 @@ export function complete(
   }
   const title = occurrence?.title || task!.title,
     duration = occurrence?.duration || task!.duration;
+  const budget =
+    s.dailyPlans.find((plan) => plan.date === day)?.timeBudget ??
+    s.settings[0].dailyBudget;
+  const used = s.completions
+    .filter((item) => !item.undone && item.day === day && item.type !== "extra")
+    .reduce((sum, item) => sum + item.duration, 0);
+  // Past the rewarded block the step is still written. Points stay at zero.
+  const pointsCapped =
+    mode === "extra" || (budget > 0 && used + duration > budget);
   const previousDue = task?.nextDue || day,
     nextDue = task ? nextOccurrence(task.recurrence, day) : "9999-12-31";
   const completion = {
@@ -135,12 +134,11 @@ export function complete(
     completedAt: now.toISOString(),
     day,
     type: mode,
-    xp:
-      mode === "extra"
-        ? 0
-        : mode === "required"
-          ? occurrence!.xp
-          : xpFor(duration),
+    xp: pointsCapped
+      ? 0
+      : mode === "required"
+        ? occurrence!.xp
+        : xpFor(duration),
     previousDue,
     nextDue,
     undone: false,
@@ -218,21 +216,45 @@ export function undo(s: State, completionId: string) {
   if (original?.objectId) syncObjectPlanLocation(s, original.objectId);
   reconcile(s);
 }
+/** Due tasks she can keep doing after the goal. Basics first. No minute cap. */
 export function extraOptions(s: State, day: Day): Task[] {
-  const reserved = s.weeks
-    .filter((w) => w.start === weekStart(day))
-    .flatMap((w) => w.required.map((o) => o.taskId));
-  const done = s.completions
-    .filter((c) => !c.undone && c.day === day)
-    .map((c) => c.taskId);
-  const choices: Task[] = [];
-  const excluded = [...reserved, ...done];
-  for (let i = 0; i < 10; i++) {
-    const next = pickTasks(s, day, s.tasks, 5, excluded)[0];
-    if (!next) break;
-    choices.push(next);
-    excluded.push(next.id);
-  }
+  const settings = s.settings[0];
+  if (!settings) return [];
+  const reserved = new Set(
+    s.weeks
+      .filter((week) => week.start === weekStart(day))
+      .flatMap((week) => week.required.map((item) => item.taskId)),
+  );
+  const done = new Set(
+    s.completions
+      .filter((item) => !item.undone && item.day === day)
+      .map((item) => item.taskId),
+  );
+  const ctx = buildTierContext(s, day);
+  const rescue = !!settings.rescue;
+  const nowMs = Date.now();
+  const choices = s.tasks.filter((task) => {
+    if (!task.enabled || reserved.has(task.id) || done.has(task.id)) return false;
+    if (task.nextDue > day || task.energy > settings.energy) return false;
+    if (task.eventAt && Date.parse(task.eventAt) > nowMs) return false;
+    const room = s.rooms.find((item) => item.id === task.roomId);
+    if (!room?.enabled) return false;
+    const object = task.objectId
+      ? s.objects.find((item) => item.id === task.objectId)
+      : undefined;
+    if (task.objectId && object?.accessibility !== "safe") return false;
+    if (!featurePresent(room, object?.category || "")) return false;
+    const gate = ctx.rooms.get(task.roomId);
+    return (
+      !!gate && canSuggest(gate, taskTier(task), rescue, zoneOf(ctx, task.roomId))
+    );
+  });
+  choices.sort((a, b) => {
+    const tier = taskTier(a) - taskTier(b);
+    if (tier) return tier;
+    if (a.duration !== b.duration) return a.duration - b.duration;
+    return a.title.localeCompare(b.title, "sk") || a.id.localeCompare(b.id);
+  });
   return choices;
 }
 export function postpone(s: State, id: string, date: Day) {

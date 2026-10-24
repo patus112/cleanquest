@@ -418,19 +418,15 @@ export function validateState(input: unknown): State {
   const active = s.completions.filter((c) => !c.undone);
   if (new Set(active.map((c) => c.occurrenceId)).size !== active.length) fail();
   for (const c of s.completions) {
-    if (c.xp !== (c.type === "extra" ? 0 : xpFor(c.duration))) fail();
+    const full = xpFor(c.duration);
+    // Extra work is never worth points. A step past the minute block is stored
+    // with 0 DA instead of being dropped.
+    if (c.type === "extra") {
+      if (c.xp !== 0) fail();
+    } else if (c.xp !== full && c.xp !== 0) fail();
     if (
       c.type === "required" &&
       !occurrences.some((o) => o.id === c.occurrenceId)
-    )
-      fail();
-  }
-  for (const d of new Set(active.map((c) => c.day))) {
-    const extras = active.filter((c) => c.day === d && c.type === "extra");
-    if (
-      extras.length > 2 ||
-      extras.reduce((n, c) => n + c.duration, 0) > 10 ||
-      extras.some((c) => c.xp !== 0)
     )
       fail();
   }
