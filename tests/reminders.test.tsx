@@ -1,11 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { defaultSafety } from "../src/domain/localSafety";
+import { currentTasks } from "../src/domain/scheduler";
 import {
   collectDailyReminders,
   laundryLine,
-  overdueLine,
-  questLine,
   visibleReminder,
 } from "../src/domain/reminders";
 import DailyReminder from "../src/ui/DailyReminder";
@@ -27,15 +26,7 @@ afterEach(() => {
 });
 
 describe("daily reminder copy and selection", () => {
-  it("uses Slovak plural forms", () => {
-    expect(questLine(1)).toBe("Na dnes zostáva 1 krok.");
-    expect(questLine(3)).toBe("Na dnes zostávajú 3 kroky.");
-    expect(questLine(5)).toBe("Na dnes zostáva 5 krokov.");
-    expect(questLine(11)).toBe("Na dnes zostáva 11 krokov.");
-    expect(questLine(22)).toBe("Na dnes zostávajú 22 kroky.");
-    expect(overdueLine(1)).toBe("Jeden je ešte z tohto týždňa.");
-    expect(overdueLine(4)).toBe("4 sú ešte z tohto týždňa.");
-    expect(overdueLine(5)).toBe("5 je ešte z tohto týždňa.");
+  it("uses Slovak plural forms for laundry only", () => {
     expect(laundryLine(1)).toBe("Pranie má pripravený ďalší krok.");
     expect(laundryLine(2)).toBe("Pranie má pripravené 2 ďalšie kroky.");
     expect(laundryLine(6)).toBe("Pranie má pripravených 6 ďalších krokov.");
@@ -66,10 +57,10 @@ describe("daily reminder copy and selection", () => {
       revision: 2,
       dirtySince: "2026-09-28T12:00:00.000Z",
     };
+    expect(currentTasks(state, day).length).toBe(3);
     expect(collectDailyReminders(state, safety, now)).toMatchObject({
       day,
-      steps: 3,
-      overdue: 0,
+      line: "Dnes ešte 1 malý krok.",
       laundry: 1,
       backup: true,
     });
@@ -78,15 +69,16 @@ describe("daily reminder copy and selection", () => {
       safety,
       new Date("2026-10-06T12:00:00.000Z"),
     );
+    expect(currentTasks(state, "2026-10-06").length).toBe(3);
     expect(items).toMatchObject({
       day: "2026-10-06",
-      steps: 3,
-      overdue: 3,
+      line: "Dnes ešte 1 malý krok.",
       laundry: 2,
       backup: true,
     });
+    expect(JSON.stringify(items)).not.toMatch(/zostáva|týždňa/);
     expect(visibleReminder(items, "home")).toEqual({
-      steps: true,
+      today: true,
       laundry: true,
       backup: true,
     });
@@ -101,7 +93,11 @@ describe("daily reminder copy and selection", () => {
     ).toBe(false);
     expect(
       collectDailyReminders(fixture(), defaultSafety(), now),
-    ).toMatchObject({ steps: 3, overdue: 0, laundry: 0, backup: false });
+    ).toMatchObject({
+      line: "Dnes ešte 1 malý krok.",
+      laundry: 0,
+      backup: false,
+    });
   });
 });
 
@@ -156,7 +152,7 @@ describe("DailyReminder", () => {
       screen.getByRole("status", { name: "Malé pripomenutie" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Na dnes zostávajú 3 kroky." }),
+      screen.getByRole("link", { name: "Dnes ešte 1 malý krok." }),
     ).toHaveAttribute("href", "#/tasks");
     fireEvent.click(screen.getByRole("button", { name: "Dnes nie" }));
     expect(
@@ -234,7 +230,7 @@ describe("DailyReminder", () => {
     );
     expect(screen.queryByText(/Od poslednej zálohy/)).toBeNull();
     expect(
-      screen.getByRole("link", { name: "Na dnes zostávajú 3 kroky." }),
+      screen.getByRole("link", { name: "Dnes ešte 1 malý krok." }),
     ).toBeVisible();
   });
 

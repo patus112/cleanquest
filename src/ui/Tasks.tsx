@@ -59,6 +59,7 @@ import {
   ObjectIcon,
 } from "./RoomVisual";
 import { TidyKit } from "./art";
+import { ProgressHud } from "./ProgressHud";
 const tasksTabFromHash = () => {
   const tab = new URLSearchParams(location.hash.split("?")[1] || "").get("tab");
   return tab === "rooms" || tab === "laundry" ? tab : "today";
@@ -265,6 +266,7 @@ export default function Tasks({ s, run, open, reminder }: ScreenProps) {
           </div>
         }
       />
+      <ProgressHud s={s} />
       {reminder}
       <div className="tabs" role="tablist" aria-label="Zobrazenie úloh">
         {tabs.map(([id, label]) => (

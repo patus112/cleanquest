@@ -6,7 +6,7 @@ CleanQuest neposiela push notifikácie a nemá server, ktorý by ťa mohol oslov
 
 Jedno pokojné pripomenutie, iba ak je čo povedať:
 
-- otvorené kroky na dnes, vrátane tých z tohto týždňa, ktoré ešte čakajú
+- jeden pokojný riadok k dnešnému času: ešte jeden malý krok, alebo oslava, keď je dnešný cieľ splnený. Neukazuje, koľko úloh z týždňa ešte niekde čaká
 - pripravený ďalší krok prania, rovnako ako doterajšie upozornenie na pranie
 - pripomenutie zálohy, ak od poslednej potvrdenej zálohy uplynul zvolený čas a údaje sa zmenili
 

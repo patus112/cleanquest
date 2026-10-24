@@ -106,10 +106,7 @@ test("daily completion, two bounded extras, independent bonus, wallet and undo",
   await page.getByRole("button", { name: "Uložiť", exact: true }).click();
   await nav(page, "Domov");
   for (let i = 0; i < 2; i++)
-    await page
-      .locator(".extra-card")
-      .getByRole("button", { name: /Hotovo/ })
-      .click();
+    await page.getByRole("button", { name: /Bonus ·/ }).click();
   await expect(
     page.getByRole("heading", { name: "Na dnes stačí. Pokračujeme zajtra." }),
   ).toBeVisible();

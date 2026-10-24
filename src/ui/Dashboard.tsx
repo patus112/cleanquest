@@ -13,7 +13,6 @@ import {
   Sparkles,
   Zap,
   ArrowRight,
-  MapPin,
 } from "lucide-react";
 import {
   Button,
@@ -32,12 +31,7 @@ import {
   markBasicsOk,
   applyDailyBudget,
 } from "../domain/commands";
-import {
-  dailySession,
-  completedIds,
-  openTasks,
-  taskIsHeld,
-} from "../domain/scheduler";
+import { dailySession } from "../domain/scheduler";
 import {
   cleaningProgress,
   rescueHint,
@@ -45,9 +39,10 @@ import {
   taskTier,
   tierHint,
 } from "../domain/tiers";
-import { totalXp, levelFor, streak } from "../domain/rewards";
+import { levelFor } from "../domain/rewards";
+import { homeStory } from "../domain/progress";
 import { money } from "../domain/model";
-import { shiftDay, weekStart, weekday } from "../domain/calendar";
+import { shiftDay, weekStart } from "../domain/calendar";
 import {
   rhythmLabel,
   rhythmPreviewLimit,
@@ -55,7 +50,8 @@ import {
   type RhythmTask,
 } from "../domain/weekRhythm";
 import { ObjectIcon, RoomIcon, TaskLocation } from "./RoomVisual";
-import { HomeGlow, PlantSprig, SunnyWindow, TidyKit } from "./art";
+import { HomeGlow, PlantSprig, ShineBurst, SunnyWindow, TidyKit } from "./art";
+import { ProgressHud } from "./ProgressHud";
 function RhythmGlyph({ task }: { task: RhythmTask }) {
   return task.icon.kind === "object" ? (
     <ObjectIcon category={task.icon.category} size={12} />
@@ -75,40 +71,21 @@ export default function Dashboard({
 }) {
   const hardDayNote = useId();
   const day = dayOf(s),
-    plan = s.dailyPlans.find((p) => p.date === day) || {
-      occurrences: [],
-      timeBudget: s.settings[0].dailyBudget,
-    },
-    doneIds = completedIds(s),
-    rescue = !!s.settings[0].rescue,
-    counted = plan.occurrences.filter(
-      (occurrence) =>
-        doneIds.has(occurrence.id) ||
-        occurrence.lead ||
-        !taskIsHeld(s, day, occurrence.taskId),
-    ),
-    done = counted.filter((o) => doneIds.has(o.id)).length,
-    total = counted.length,
-    progress = total ? done / total : 1,
-    task = dailySession(s, day)[0];
-  const xp = totalXp(s),
-    level = levelFor(xp),
+    story = homeStory(s),
+    rescue = story.rescue,
+    task = story.goalMet ? undefined : dailySession(s, day)[0];
+  const level = levelFor(story.totalXp),
     week = s.weeks.find((w) => w.start === weekStart(day)) || {
       required: [],
       start: weekStart(day),
       rewardCents: s.settings[0].weeklyCents,
       rewardEnabled: s.settings[0].monetary,
       restDays: s.settings[0].restDays,
-    },
-    weekDone = week.required.filter((o) => doneIds.has(o.id)).length;
-  const rest = week.restDays.includes(weekday(day)),
-    extras = s.completions.filter(
+    };
+  const extras = s.completions.filter(
       (c) => !c.undone && c.day === day && c.type === "extra",
     ),
-    // The extra card is hidden while today's plan still has a task. Scoring the
-    // whole library here used to block the done dialog for seconds.
-    options =
-      openTasks(s, day).length || rest ? [] : extraOptions(s, day),
+    options = story.goalMet && !story.rest ? extraOptions(s, day) : [],
     [extraIndex, setExtraIndex] = useState(0),
     extra = options[extraIndex % Math.max(1, options.length)];
   const rhythm = useMemo(() => weekRhythm(s, day), [s, day]);
@@ -128,11 +105,12 @@ export default function Dashboard({
     void run(
       (state) =>
         complete(state, task.taskId, "required", task.id, new Date(), 60),
-      `Hotovo. +${task.xp} DA ⚡ · dnes ${done + 1} z ${total}.`,
+      `Hotovo. +${task.xp} DA ⚡`,
     );
   };
   return (
     <div className="home-screen">
+      <ProgressHud s={s} />
       <div className="session-selector">
         <span>Dnešný krátky blok</span>
         <select
@@ -201,42 +179,39 @@ export default function Dashboard({
                 cx="75"
                 cy="75"
                 r="65"
-                strokeDasharray={`${progress * 408} 408`}
+                strokeDasharray={`${story.progress * 408} 408`}
               />
             </svg>
             <div>
-              <strong>
-                {done}
-                <small>/{total}</small>
-              </strong>
-              <span>malých krokov</span>
+              {story.ring ? (
+                <>
+                  <strong>
+                    {story.ring.current}
+                    <small>/{story.ring.goal}</small>
+                  </strong>
+                  <span>minút</span>
+                </>
+              ) : (
+                <>
+                  <strong>✓</strong>
+                  <span>cieľ splnený</span>
+                </>
+              )}
             </div>
           </div>
           <div>
-            <h2>
-              {rest
-                ? "Dnes máš voľno."
-                : done === total
-                  ? "Na dnes dobrý pocit."
-                  : "Kúsok po kúsku."}
-            </h2>
-            <p>
-              {rest
-                ? "Oddych patrí do tvojho plánu."
-                : done === total
-                  ? "Aj malá pravidelnosť mení domov. Dopraj si pauzu."
-                  : "Nemusíš zvládnuť všetko. Začni jednou malou vecou."}
-            </p>
+            <h2>{story.headline}</h2>
+            <p>{story.detail}</p>
             <div className="daily-stats">
               <span>
                 <Zap size={16} />
-                {xp} DA ⚡
+                {story.totalXp} DA ⚡
               </span>
               <span>
                 <Leaf size={16} />
                 Úroveň {level.level}
               </span>
-              <span>{streak(s, day)} dní v rytme</span>
+              <span>{story.streakLabel}</span>
             </div>
           </div>
         </div>
@@ -391,7 +366,8 @@ export default function Dashboard({
               </span>
             </div>
             <p className="today-progress">
-              Dnes {done} z {total}. Jedna konkrétna vec.
+              Dnes {story.usedMinutes} / {story.goalMinutes} min. Jedna
+              konkrétna vec.
             </p>
             <TaskLocation s={s} task={task} compact />
             <div className="next-actions">
@@ -424,12 +400,34 @@ export default function Dashboard({
             <div className="calm-icon">
               <HomeGlow className="calm-art" />
             </div>
-            <h2>Teraz je čas na pokoj.</h2>
-            <p>
-              {rest
-                ? "Dnes nie je nič povinné."
-                : "Tvoj krátky blok je hotový. Pokračovať môžeš neskôr."}
-            </p>
+            {story.goalMet && <ShineBurst />}
+            <h2>{story.headline}</h2>
+            <p>{story.detail}</p>
+            {story.goalMet && !story.rest && extras.length < 2 && extra && (
+              <div className="next-actions">
+                <Button
+                  onClick={() =>
+                    void run(
+                      (state) => complete(state, extra.id, "extra"),
+                      "Hotovo. Dopraj si aj oddych.",
+                    )
+                  }
+                >
+                  <Check size={18} />
+                  Bonus · {extra.duration} min
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setExtraIndex(extraIndex + 1)}
+                >
+                  <RefreshCw size={18} />
+                  Iný bonus
+                </Button>
+              </div>
+            )}
+            {story.goalMet && !story.rest && extras.length >= 2 && (
+              <h3>Na dnes stačí. Pokračujeme zajtra.</h3>
+            )}
             <Button variant="secondary" onClick={() => navigate("ideas")}>
               Priestor pre nápady
               <ArrowRight size={18} />
@@ -447,7 +445,7 @@ export default function Dashboard({
           <div className="card-title-row">
             <h2>{money(week.rewardCents)}</h2>
             <span className="tag">
-              {weekDone} / {week.required.length} krokov
+              {story.weekDone} / {story.weekTotal} krokov
             </span>
           </div>
           <p>
@@ -456,7 +454,7 @@ export default function Dashboard({
               : "Peňažné odmeny máš vypnuté."}
           </p>
           <Progress
-            value={week.required.length ? weekDone / week.required.length : 0}
+            value={story.weekTotal ? story.weekDone / story.weekTotal : 0}
           />
           <LinkAction onClick={() => navigate("rewards")}>
             Môj virtuálny rozpočet
@@ -500,54 +498,6 @@ export default function Dashboard({
           </LinkAction>
         </section>
       </div>
-      {!openTasks(s, day).length && !rest && (
-        <section className="extra-card">
-          <div>
-            <SectionLabel icon={Zap}>Ešte mám energiu</SectionLabel>
-            <h3>
-              {extras.length >= 2
-                ? "Na dnes stačí. Pokračujeme zajtra."
-                : extra
-                  ? extra.title
-                  : "Dnes už máš všetko podstatné hotové."}
-            </h3>
-            <p>
-              Najviac dve malé úlohy. Bez DA ⚡ a bez odmien. {extras.length} /
-              2 hotové.
-            </p>
-          </div>
-          {extras.length < 2 && extra && (
-            <div className="actions">
-              <Button
-                variant="icon ghost"
-                aria-label="Ukázať miesto extra úlohy"
-                onClick={() => open({ kind: "location", taskId: extra.id })}
-              >
-                <MapPin size={18} />
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  void run(
-                    (state) => complete(state, extra.id, "extra"),
-                    "Hotovo. Dopraj si aj oddych.",
-                  )
-                }
-              >
-                <Check size={18} />
-                Hotovo · {extra.duration} min
-              </Button>
-              <Button
-                variant="icon ghost"
-                aria-label="Iná extra úloha"
-                onClick={() => setExtraIndex(extraIndex + 1)}
-              >
-                <RefreshCw size={18} />
-              </Button>
-            </div>
-          )}
-        </section>
-      )}
       <div className="closing-note">
         <Leaf size={16} />
         <span>Pravidelnosť, nie dokonalosť.</span>

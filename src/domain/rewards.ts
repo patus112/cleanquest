@@ -1,7 +1,7 @@
 import type { State } from "./model";
 import { uid } from "./model";
 import { completedIds } from "./scheduler";
-import { shiftDay, weekday, weekStart } from "./calendar";
+import { goalStreak } from "./progress";
 export const totalXp = (s: State) =>
   s.completions.filter((c) => !c.undone).reduce((n, c) => n + c.xp, 0) +
   s.bonuses.filter((b) => b.awarded).length * 100 +
@@ -104,24 +104,5 @@ export function reconcile(s: State, now = new Date().toISOString()): void {
   }
 }
 export function streak(s: State, day: string) {
-  let count = 0,
-    date = day;
-  const ids = completedIds(s);
-  for (let i = 0; i < 3660; i++, date = shiftDay(date, -1)) {
-    if (date < s.households[0].createdAt.slice(0, 10)) break;
-    const week = s.weeks.find((w) => w.start === weekStart(date));
-    if ((week?.restDays || s.settings[0].restDays).includes(weekday(date)))
-      continue;
-    const plan = s.dailyPlans.find((p) => p.date === date);
-    if (
-      plan?.occurrences.length &&
-      plan.occurrences.every((o) => ids.has(o.id))
-    ) {
-      count++;
-      continue;
-    }
-    if (i === 0) continue;
-    break;
-  }
-  return count;
+  return goalStreak(s, day);
 }

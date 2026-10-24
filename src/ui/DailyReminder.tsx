@@ -5,8 +5,6 @@ import type { LocalSafety } from "../domain/localSafety";
 import {
   collectDailyReminders,
   laundryLine,
-  overdueLine,
-  questLine,
   visibleReminder,
 } from "../domain/reminders";
 import { Button } from "./components";
@@ -49,7 +47,7 @@ export default function DailyReminder({
   const visible = visibleReminder(items, page);
   const showBackup = visible.backup && !hideBackup;
   if (
-    (!visible.steps && !visible.laundry && !showBackup) ||
+    (!visible.today && !visible.laundry && !showBackup) ||
     dismissed === items.day ||
     held === items.day
   )
@@ -63,11 +61,12 @@ export default function DailyReminder({
       <div>
         <p className="daily-reminder-title">Keď budeš chcieť</p>
         <ul>
-          {visible.steps && (
+          {visible.today && items.line && (
             <li>
-              <a href="#/tasks">{questLine(items.steps)}</a>
-              {items.overdue > 0 && (
-                <span className="overdue">{overdueLine(items.overdue)}</span>
+              {items.line.startsWith("Dnešný cieľ") ? (
+                <span className="today-goal">{items.line}</span>
+              ) : (
+                <a href="#/tasks">{items.line}</a>
               )}
             </li>
           )}

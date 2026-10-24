@@ -243,7 +243,7 @@ test("every basic row can be ticked and a weekly hallway stays on Základ", asyn
     .click();
   await expect(
     hall.getByRole("alert"),
-  ).toContainText("odmeňované úlohy");
+  ).toContainText("body sú pokope");
   await expect(hall.getByText("dnes netreba").first()).toBeVisible();
 
   await clutter.click();

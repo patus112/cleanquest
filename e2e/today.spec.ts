@@ -31,8 +31,8 @@ test("home opens on today's task, completes in one tap and postpones the next", 
     ).violations,
   ).toEqual([]);
   await done.click();
-  await expect(page.getByText(/Hotovo\..*dnes 1 z/)).toBeVisible();
-  await expect(card).toContainText("Dnes 1 z");
+  await expect(page.getByText(/Hotovo\. \+\d+ DA/)).toBeVisible();
+  await expect(card).toContainText(/3 \/ 10 min/);
   await expect(title).not.toHaveText(first);
   expect((await read(page)).completions).toHaveLength(1);
   expect((await read(page)).completions[0].xp).toBeGreaterThan(0);

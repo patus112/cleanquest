@@ -266,7 +266,8 @@ describe("Slovak user journeys", () => {
     );
     expect(screen.getByText("LEN JEDNA VEC")).toBeVisible();
     expect(screen.getByText(/^0 DA ⚡$/)).toBeVisible();
-    expect(screen.getByText(/Dnes 0 z /)).toBeVisible();
+    expect(screen.getByText("minút")).toBeVisible();
+    expect(screen.queryByText("malých krokov")).toBeNull();
     expect(screen.getByText("10 min denne")).toBeVisible();
     expect(screen.getByLabelText("Dnešný časový blok")).toHaveValue("10");
     fireEvent.click(screen.getByRole("button", { name: /Začať malý krok/ }));
@@ -339,7 +340,7 @@ describe("Slovak user journeys", () => {
     });
     expect(s.completions).toHaveLength(1);
     expect(s.completions[0]).toMatchObject({ type: "required", xp: 10 });
-    expect(run.mock.calls[0][1]).toMatch(/dnes 1 z/);
+    expect(run.mock.calls[0][1]).toMatch(/Hotovo\. \+10 DA/);
   });
   it("postpones today's offered task until tomorrow", async () => {
     vi.useFakeTimers();

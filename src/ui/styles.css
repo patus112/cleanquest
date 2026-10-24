@@ -1694,13 +1694,18 @@ dialog::backdrop {
   margin: 0;
   padding: 0;
 }
-.daily-reminder a {
+.daily-reminder a,
+.daily-reminder .today-goal {
   align-items: center;
   color: var(--text);
   display: inline-flex;
   min-height: 44px;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.daily-reminder .today-goal {
+  color: var(--accent);
+  text-decoration: none;
 }
 .daily-reminder .overdue {
   color: var(--muted);
@@ -2012,6 +2017,120 @@ dialog::backdrop {
     left: calc(50% + 105px);
   }
 }
+.progress-hud {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 14px;
+  align-items: center;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+.home-screen > .progress-hud {
+  margin: 0;
+}
+.progress-hud .hud-total {
+  display: flex;
+  flex-direction: column;
+  min-width: 4.6rem;
+}
+.progress-hud .hud-kicker,
+.progress-hud .hud-week,
+.progress-hud .hud-soft {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.progress-hud .hud-total strong {
+  color: var(--gold);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.4px;
+  line-height: 1.1;
+}
+.progress-hud .hud-today .progress-label {
+  margin-bottom: 6px;
+}
+.progress-hud .hud-xp {
+  color: var(--accent);
+}
+.progress-hud .hud-soft {
+  margin-top: 6px;
+}
+.progress-hud .hud-week {
+  grid-column: 1 / -1;
+}
+.collect-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+.collect-burst canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.collect-award {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 148px;
+  padding: 14px 22px 12px;
+  border-radius: 18px;
+  border: 1px solid var(--gold);
+  background: var(--card);
+  box-shadow: 0 16px 40px #0006;
+}
+.collect-plus {
+  color: var(--gold);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  line-height: 1;
+  opacity: 1;
+  animation: collect-rise 900ms ease-out both;
+}
+dialog[open] > .collect-burst {
+  position: absolute;
+  z-index: 5;
+}
+.collect-total {
+  color: var(--accent);
+  font-size: 14px;
+}
+@keyframes collect-rise {
+  from {
+    transform: translateY(14px) scale(0.92);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .collect-plus {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 @media (max-width: 800px) {
   .sidebar {
     display: none;
@@ -2148,6 +2267,13 @@ dialog::backdrop {
     align-items: stretch;
     gap: 17px;
   }
+  .home-screen > .progress-hud {
+    order: 0;
+    padding: 8px 12px;
+  }
+  .progress-hud .hud-total strong {
+    font-size: 16px;
+  }
   .home-screen > .next-card {
     order: 1;
   }
@@ -2207,7 +2333,7 @@ dialog::backdrop {
     font-size: 9px;
   }
   .daily-stats span:last-child {
-    display: none;
+    flex-basis: 100%;
   }
   .daily-card .section-heading {
     margin-bottom: 16px;

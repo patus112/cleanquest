@@ -788,7 +788,7 @@ describe("cleaning tiers", () => {
       nextDue: shiftDay(day, 12),
     });
     expect(() => toggleBasicToday(s, crowded.id, now)).toThrow(
-      /odmeňované úlohy/,
+      /body sú pokope/,
     );
   });
 

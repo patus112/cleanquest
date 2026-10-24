@@ -108,6 +108,9 @@ describe("quick task", () => {
         "done",
         now,
       ),
-    ).toThrow(/čas/);
+    ).toThrow(/body sú pokope/);
+    expect(s.completions.some((item) => item.title === "Ešte jedna vec")).toBe(
+      false,
+    );
   });
 });
