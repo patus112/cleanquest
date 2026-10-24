@@ -10,9 +10,10 @@ import { featurePresent } from "./rooms";
  * Tier 1 is always available.
  * Tier 2 unlocks when a frequent Tier 1 task (every day or every other day)
  * was done on at least TIER_UNLOCK_DAYS distinct days inside the last
- * TIER_WINDOW_DAYS days, or when the room has no frequent Tier 1 task.
- * Tier 3 unlocks only when Tier 1 still meets that bar and a frequent Tier 2
- * task does too (or the room has no frequent Tier 2 task).
+ * TIER_WINDOW_DAYS days. A room whose basics are only weekly or rarer does
+ * not skip ahead: Tier 2 unlocks when each of those basics is done for the
+ * day it is due. Tier 3 needs that Tier 1 bar and the same kind of Tier 2
+ * bar. Having no frequent task is not itself a reason to show Detaily.
  * If the count falls back under the bar, higher tiers quietly stop being suggested.
  */
 export const TIER_WINDOW_DAYS = 7;
@@ -202,6 +203,10 @@ export interface RoomTierState {
   hasFrequentTier1: boolean;
   /** Tier-2 work that can actually occur on 4 days of a week. */
   hasFrequentTier2: boolean;
+  /** Frequent bar met, or every rarer task of this tier is done when due. */
+  tier1Ready: boolean;
+  /** Same rule one step up. No task of this tier counts as ready. */
+  tier2Ready: boolean;
   basicsOpen: boolean;
   openedToday: boolean;
   /** A due tier-1 task is still unfinished. Independent of Základ máme. */
@@ -221,6 +226,10 @@ export interface ZoneTierState {
   tier2Days: number;
   hasFrequentTier1: boolean;
   hasFrequentTier2: boolean;
+  tier1Ready: boolean;
+  tier2Ready: boolean;
+  /** Ready for suggestions. Základ máme covers a rarer basic for today only. */
+  tier1Suggest: boolean;
   basicsOpen: boolean;
   openedToday: boolean;
   markedOk: boolean;
@@ -232,9 +241,32 @@ export interface TierContext {
 }
 
 function tierReady(room: RoomTierState, tier: 1 | 2): boolean {
-  if (tier === 1)
-    return !room.hasFrequentTier1 || room.tier1Days >= TIER_UNLOCK_DAYS;
-  return !room.hasFrequentTier2 || room.tier2Days >= TIER_UNLOCK_DAYS;
+  return tier === 1 ? room.tier1Ready : room.tier2Ready;
+}
+
+/** The 4-day bar is never skipped. Základ máme only covers weekly or rarer basics. */
+function suggestsTier1(room: RoomTierState): boolean {
+  if (!room.hasTier1 || room.tier1Ready) return true;
+  return !room.hasFrequentTier1 && room.markedOk;
+}
+
+/**
+ * Frequent work uses the 4-day bar. Weekly and rarer work is ready when
+ * nothing of that tier is still due today. No task of the tier does not
+ * block the next one.
+ */
+function roomTierReady(
+  tasks: Task[],
+  tier: 1 | 2,
+  days: number,
+  day: Day,
+  doneToday: Set<string>,
+): boolean {
+  const mine = tasks.filter((task) => task.enabled && taskTier(task) === tier);
+  if (!mine.length) return true;
+  if (mine.some((task) => frequentTierTask(task, tier)))
+    return days >= TIER_UNLOCK_DAYS;
+  return mine.every((task) => task.nextDue > day || doneToday.has(task.id));
 }
 
 export function frequentTierTask(
@@ -273,12 +305,8 @@ export function canSuggest(
   const markedOk = zone ? zone.markedOk : room.markedOk;
   if (tier <= 1) return !markedOk;
   const basicsOpen = zone ? zone.basicsOpen : room.basicsOpen;
-  const ready1 = zone
-    ? !zone.hasFrequentTier1 || zone.tier1Days >= TIER_UNLOCK_DAYS
-    : tierReady(room, 1);
-  const ready2 = zone
-    ? !zone.hasFrequentTier2 || zone.tier2Days >= TIER_UNLOCK_DAYS
-    : tierReady(room, 2);
+  const ready1 = zone ? zone.tier1Suggest : suggestsTier1(room);
+  const ready2 = zone ? zone.tier2Ready : tierReady(room, 2);
   if (basicsOpen) return false;
   if (!ready1) return false;
   if (tier === 3 && !ready2) return false;
@@ -386,6 +414,22 @@ export function buildTierContext(
     );
     const hasFrequentTier1 = inRoom.some((task) => frequentTierTask(task, 1));
     const hasFrequentTier2 = inRoom.some((task) => frequentTierTask(task, 2));
+    const tier1Days = days.get(roomId)?.tier1.size ?? 0;
+    const tier2Days = days.get(roomId)?.tier2.size ?? 0;
+    const tier1Ready = roomTierReady(
+      inRoom,
+      1,
+      tier1Days,
+      day,
+      completedToday,
+    );
+    const tier2Ready = roomTierReady(
+      inRoom,
+      2,
+      tier2Days,
+      day,
+      completedToday,
+    );
     const openBasic = inRoom.some(
       (task) =>
         taskTier(task) === 1 &&
@@ -398,12 +442,14 @@ export function buildTierContext(
     const markedOk = basicsOk.has(roomId);
     const pendingBasic = hasTier1 && openBasic;
     rooms.set(roomId, {
-      tier1Days: days.get(roomId)?.tier1.size ?? 0,
-      tier2Days: days.get(roomId)?.tier2.size ?? 0,
+      tier1Days,
+      tier2Days,
       hasTier1,
       hasTier2,
       hasFrequentTier1,
       hasFrequentTier2,
+      tier1Ready,
+      tier2Ready,
       basicsOpen: pendingBasic && !markedOk,
       openedToday: didBasic || markedOk,
       pendingBasic,
@@ -440,6 +486,9 @@ export function buildTierContext(
         : 0,
       hasFrequentTier1: frequent1.length > 0,
       hasFrequentTier2: frequent2.length > 0,
+      tier1Ready: states.every((row) => row.tier1Ready),
+      tier2Ready: states.every((row) => row.tier2Ready),
+      tier1Suggest: states.every((row) => suggestsTier1(row)),
       basicsOpen,
       openedToday:
         !basicsOpen && (markedOk || states.some((row) => row.didBasic)),
@@ -469,19 +518,22 @@ export interface LevelGroupView {
 }
 
 function reachedLevel(
-  hasFrequentTier1: boolean,
-  tier1Days: number,
-  hasFrequentTier2: boolean,
-  tier2Days: number,
+  hasTier1: boolean,
+  tier1Ready: boolean,
+  tier2Ready: boolean,
   hasTier2: boolean,
   hasTier3: boolean,
 ): CleaningTier {
-  const ready1 = !hasFrequentTier1 || tier1Days >= TIER_UNLOCK_DAYS;
-  const ready2 = ready1 && (!hasFrequentTier2 || tier2Days >= TIER_UNLOCK_DAYS);
-  if (ready1 && ready2 && hasTier3) return 3;
-  if (ready1 && (hasTier2 || hasTier3)) return 2;
+  if (!hasTier1 || !tier1Ready) return 1;
+  if (tier2Ready && hasTier3) return 3;
+  if (hasTier2 || hasTier3) return 2;
   return 1;
 }
+
+const rareReadyNote =
+  "Základ sa tu opakuje zriedkavejšie než každý druhý deň. Máš ho hotový, keď príde na rad, takže sa môže ukázať ďalšia úroveň.";
+const rareDetailsNote =
+  "Základ aj čistenie sa tu opakujú zriedkavejšie. Sú hotové, keď prídu na rad, preto sa ukazuje Detaily.";
 
 function joinNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? "";
@@ -526,10 +578,15 @@ export function levelOverview(s: State, day: Day): LevelGroupView[] {
     if (!zone) continue;
     for (const id of zone.roomIds) seen.add(id);
     const members = zone.roomIds.map(roomView);
-    const behind = members.filter((room) => {
+    const frequentBehind = members.filter((room) => {
       const state = ctx.rooms.get(room.roomId);
       return !!state?.hasFrequentTier1 && room.tier1Days < TIER_UNLOCK_DAYS;
     });
+    const rareBehind = members.filter((room) => {
+      const state = ctx.rooms.get(room.roomId);
+      return !!state?.hasTier1 && !state.hasFrequentTier1 && !state.tier1Ready;
+    });
+    const hasTier1 = zone.roomIds.some((id) => ctx.rooms.get(id)?.hasTier1);
     const hasTier2 = zone.roomIds.some((id) => ctx.rooms.get(id)?.hasTier2);
     const hasTier3 = zone.roomIds.some((id) =>
       s.tasks.some(
@@ -538,21 +595,27 @@ export function levelOverview(s: State, day: Day): LevelGroupView[] {
       ),
     );
     const level = reachedLevel(
-      zone.hasFrequentTier1,
-      zone.tier1Days,
-      zone.hasFrequentTier2,
-      zone.tier2Days,
+      hasTier1,
+      zone.tier1Ready,
+      zone.tier2Ready,
       hasTier2,
       hasTier3,
     );
-    const names = joinNames(behind.map((room) => room.name));
-    const note = behind.length
-      ? `${names} ${behind.length === 1 ? "má" : "majú"} základ menej ako 4 dni z posledných 7. Čisté príde, až keď ho bude mať celý priestor.`
-      : zone.basicsOpen
-        ? "Dnes ešte základ. Potom sa môže ukázať ďalšia úroveň."
-        : level === 1
-          ? "Dnes stačí, aby to na prvý pohľad vyzeralo upratané."
-          : "Celý priestor má základ. Ďalšia úroveň sa môže ukázať.";
+    const frequentNames = joinNames(frequentBehind.map((room) => room.name));
+    const rareNames = joinNames(rareBehind.map((room) => room.name));
+    const note = frequentBehind.length
+      ? `${frequentNames} ${frequentBehind.length === 1 ? "má" : "majú"} základ menej ako 4 dni z posledných 7. Čisté príde, až keď ho bude mať celý priestor.`
+      : rareBehind.length
+        ? `${rareNames} ${rareBehind.length === 1 ? "ešte čaká" : "ešte čakajú"} so základom, ktorý príde zriedkavejšie. Čisté príde, až keď ho bude mať celý priestor.`
+        : !zone.hasFrequentTier1 && level > 1
+          ? level === 3
+            ? rareDetailsNote
+            : rareReadyNote
+          : zone.basicsOpen
+            ? "Dnes ešte základ. Potom sa môže ukázať ďalšia úroveň."
+            : level === 1
+              ? "Dnes stačí, aby to na prvý pohľad vyzeralo upratané."
+              : "Celý priestor má základ. Ďalšia úroveň sa môže ukázať.";
     groups.push({
       id: `zone:${floor.id}`,
       kind: "zone",
@@ -572,22 +635,26 @@ export function levelOverview(s: State, day: Day): LevelGroupView[] {
         task.roomId === room.id && task.enabled && taskTier(task) === 3,
     );
     const level = reachedLevel(
-      !!state?.hasFrequentTier1,
-      state?.tier1Days ?? 0,
-      !!state?.hasFrequentTier2,
-      state?.tier2Days ?? 0,
+      !!state?.hasTier1,
+      !!state?.tier1Ready,
+      !!state?.tier2Ready,
       !!state?.hasTier2,
       hasTier3,
     );
+    const note = !state?.hasTier1
+      ? "Základ tu zatiaľ nemáš. Ďalšie úlohy môžu pokojne počkať."
+      : level > 1 && !state.hasFrequentTier1
+        ? level === 3
+          ? rareDetailsNote
+          : rareReadyNote
+        : tierHint(state.tier1Days, true);
     groups.push({
       id: room.id,
       kind: "room",
       name: room.name,
       level,
       tier1Days: state?.tier1Days ?? 0,
-      note: state?.hasTier1
-        ? tierHint(state.tier1Days, true)
-        : "Základ tu zatiaľ nemáš. Ďalšie úlohy môžu pokojne počkať.",
+      note,
       rooms: [view],
     });
   }

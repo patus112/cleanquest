@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { Day, State } from "../domain/model";
 import { toggleBasicToday } from "../domain/commands";
 import { levelOverview, tierLabels } from "../domain/tiers";
@@ -20,6 +21,13 @@ export function LevelOverview({
   run: ScreenProps["run"];
 }) {
   const groups = levelOverview(s, day);
+  const [reason, setReason] = useState<{ id: string; text: string } | null>(
+    null,
+  );
+  const reasonRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    reasonRef.current?.scrollIntoView({ block: "nearest" });
+  }, [reason]);
   if (!groups.length) return null;
   return (
     <section className="level-overview" aria-label="Prehľad úrovní">
@@ -58,14 +66,16 @@ export function LevelOverview({
                             ? `Vrátiť: ${item.title}`
                             : `Označiť ako hotové: ${item.title}`
                         }
-                        onClick={() =>
+                        onClick={() => {
+                          setReason(null);
                           void run(
                             (state) => toggleBasicToday(state, item.id),
                             item.status === "done"
                               ? "Vrátené. Tento základ znova čaká."
                               : "Hotovo. Tento základ sa počíta.",
-                          )
-                        }
+                            (text) => setReason({ id: item.id, text }),
+                          );
+                        }}
                       >
                         <span aria-hidden="true">
                           {item.status === "done" ? "✓" : "○"}
@@ -75,6 +85,11 @@ export function LevelOverview({
                       <span className="level-task-status">
                         {statusLabel[item.status]}
                       </span>
+                      {reason?.id === item.id && (
+                        <p className="level-reason" role="alert" ref={reasonRef}>
+                          {reason.text}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>

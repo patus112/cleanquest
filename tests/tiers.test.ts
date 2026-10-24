@@ -296,6 +296,31 @@ describe("cleaning tiers", () => {
     expect(s.tasks.every((item) => item.enabled)).toBe(true);
   });
 
+  it("Základ máme opens a weekly room today and leaves the label on Základ", () => {
+    const s = home();
+    const floor = task(s, s.rooms[0].id, "Odložiť veci z podlahy");
+    const wipe = task(s, s.rooms[0].id, "Utrieť jednu batériu");
+    const plug = task(s, s.rooms[0].id, "Očistiť zátku umývadla");
+    ensurePlans(s, day, now.toISOString());
+    for (const plan of s.dailyPlans)
+      if (plan.date !== day)
+        plan.occurrences = plan.occurrences.filter((item) => item.taskId !== wipe.id);
+    for (const week of s.weeks)
+      week.required = week.required.filter(
+        (item) => item.taskId !== wipe.id || item.date === day,
+      );
+    const label = () =>
+      levelOverview(s, day).find((group) => group.kind === "room")!;
+    expect(label().level).toBe(1);
+    markBasicsOk(s, s.rooms[0].id, now);
+    const open = openTasks(s, day).map((item) => item.taskId);
+    expect(open).not.toContain(floor.id);
+    expect(open).toContain(wipe.id);
+    expect(open).not.toContain(plug.id);
+    expect(label().level).toBe(1);
+    expect(label().note).not.toMatch(/Detaily/);
+  });
+
   it("lets an explicit OK open the same day only after the streak exists", () => {
     const s = home();
     const dishes = task(s, s.rooms[0].id, "Uprať riad z drezu", often);
@@ -765,6 +790,204 @@ describe("cleaning tiers", () => {
     expect(() => toggleBasicToday(s, crowded.id, now)).toThrow(
       /odmeňované úlohy/,
     );
+  });
+
+  it("keeps a hallway of mixed basics on Základ and ticks one that did not fit today", () => {
+    const s = home();
+    s.settings[0].dailyBudget = 10;
+    const hall = s.rooms[0];
+    hall.name = "Vstupná chodba";
+    hall.category = "hallway";
+    const narrow = addRoom(s, "room-narrow", "Úzka chodba", {
+      category: "hallway",
+    });
+    const weekly = {
+      recurrence: {
+        unit: "week" as const,
+        interval: 1,
+        strategy: "completion" as const,
+        anchor: day,
+      },
+    };
+    const clutter = task(s, hall.id, "Odložiť veľké veci, ktoré sú na očiach", {
+      id: "clutter",
+      duration: 5,
+      ...weekly,
+    });
+    const floor = task(s, hall.id, "Odložiť veci z podlahy", {
+      id: "hall-floor",
+      duration: 3,
+      ...weekly,
+    });
+    task(s, hall.id, "Vrátiť päť vecí na miesto", {
+      id: "returning",
+      duration: 3,
+      recurrence: {
+        unit: "month",
+        interval: 1,
+        strategy: "completion",
+        anchor: day,
+      },
+    });
+    task(s, hall.id, "Utrieť troje dvierka skrinky", {
+      id: "hall-wipe",
+      duration: 3,
+      ...weekly,
+    });
+    task(s, hall.id, "Vytriediť jednu časť skrinky", {
+      id: "hall-detail",
+      duration: 5,
+    });
+    task(s, narrow.id, "Odložiť veci z podlahy", {
+      id: "narrow-floor",
+      duration: 3,
+      ...weekly,
+    });
+    task(s, narrow.id, "Vytriediť jednu časť skrinky", {
+      id: "narrow-detail",
+      duration: 5,
+    });
+    const view = (name: string) =>
+      levelOverview(s, day).find((group) => group.name === name)!;
+    expect(view("Vstupná chodba").level).toBe(1);
+    expect(view("Úzka chodba").level).toBe(1);
+    expect(view("Úzka chodba").tier1Days).toBe(0);
+    expect(view("Vstupná chodba").note).not.toMatch(/Detaily/);
+    did(s, floor.id, day);
+    floor.nextDue = shiftDay(day, 7);
+    expect(view("Vstupná chodba").level).toBe(1);
+    expect(view("Vstupná chodba").tier1Days).toBe(1);
+    expect(
+      view("Vstupná chodba")
+        .rooms[0].basics.find((item) => item.id === clutter.id)?.status,
+    ).toBe("waiting");
+
+    const other = addRoom(s, "room-other", "Kuchyňa", { category: "kitchen" });
+    const filler = task(s, other.id, "Uprať riad z drezu", {
+      id: "filler",
+      duration: 5,
+      ...often,
+    });
+    const side = task(s, other.id, "Naložiť riad do umývačky", {
+      id: "side",
+      duration: 3,
+      ...often,
+    });
+    ensurePlans(s, day, now.toISOString());
+    for (const plan of s.dailyPlans)
+      plan.occurrences = plan.occurrences.filter(
+        (item) => item.taskId !== clutter.id,
+      );
+    for (const week of s.weeks)
+      week.required = week.required.filter((item) => item.taskId !== clutter.id);
+    did(s, filler.id, day);
+    did(s, side.id, day);
+    expect(s.completions.reduce((sum, item) => sum + item.duration, 0)).toBeGreaterThanOrEqual(
+      8,
+    );
+    toggleBasicToday(s, clutter.id, now);
+    const recorded = s.completions.find(
+      (item) => !item.undone && item.taskId === clutter.id,
+    );
+    expect(recorded?.type).toBe("required");
+    expect(recorded?.day).toBe(day);
+    expect(recorded?.xp).toBe(xpFor(5));
+    expect(validateState(structuredClone(s)).completions).toContainEqual(recorded);
+    const after = view("Vstupná chodba");
+    expect(after.level).toBe(1);
+    expect(after.tier1Days).toBeGreaterThan(0);
+    expect(
+      after.rooms[0].basics.find((item) => item.id === clutter.id)?.status,
+    ).toBe("done");
+    toggleBasicToday(s, clutter.id, now);
+    expect(
+      view("Vstupná chodba")
+        .rooms[0].basics.find((item) => item.id === clutter.id)?.status,
+    ).toBe("waiting");
+
+    for (const basic of s.tasks.filter(
+      (item) => item.roomId === hall.id && item.tier === 1,
+    ))
+      basic.nextDue = shiftDay(day, 7);
+    const opened = view("Vstupná chodba");
+    expect(opened.level).toBe(2);
+    expect(opened.level).not.toBe(3);
+    expect(opened.note).toMatch(/zriedkavejšie/);
+    expect(opened.note).not.toMatch(/zlyh|nespln|failed/i);
+  });
+
+  it("does not open Detaily for weekly basics until cleaning is done when due", () => {
+    const s = home();
+    const floor = task(s, s.rooms[0].id, "Odložiť veci z podlahy", {
+      id: "weekly-floor",
+      recurrence: {
+        unit: "week",
+        interval: 1,
+        strategy: "completion",
+        anchor: day,
+      },
+    });
+    const wipe = task(s, s.rooms[0].id, "Utrieť jednu batériu", {
+      id: "weekly-wipe",
+    });
+    const plug = task(s, s.rooms[0].id, "Očistiť zátku umývadla", {
+      id: "weekly-plug",
+    });
+    did(s, floor.id, day);
+    floor.nextDue = shiftDay(day, 7);
+    const chosen = () => pickTasks(s, day, s.tasks, 30).map((item) => item.id);
+    expect(chosen()).toContain(wipe.id);
+    expect(chosen()).not.toContain(plug.id);
+    did(s, wipe.id, day);
+    wipe.nextDue = shiftDay(day, 7);
+    expect(chosen()).toContain(plug.id);
+  });
+
+  it("holds the open-plan gate for a hallway whose basics are only weekly", () => {
+    const s = home();
+    const living = s.rooms[0];
+    living.name = "Obývačka";
+    living.openPlan = true;
+    const cook = addRoom(s, "room-kitchen", "Kuchyňa", {
+      category: "kitchen",
+      openPlan: true,
+    });
+    const hall = addRoom(s, "room-hall", "Vstupná chodba", {
+      category: "hallway",
+      openPlan: true,
+    });
+    const dishes = task(s, cook.id, "Uprať riad z drezu", {
+      ...often,
+      id: "zone-dishes",
+    });
+    task(s, cook.id, "Utrieť jednu batériu", { id: "zone-wipe" });
+    const clutter = task(s, hall.id, "Odložiť veľké veci, ktoré sú na očiach", {
+      id: "zone-clutter",
+      recurrence: {
+        unit: "week",
+        interval: 1,
+        strategy: "completion",
+        anchor: day,
+      },
+    });
+    for (let offset = 1; offset <= 4; offset++)
+      did(s, dishes.id, shiftDay(day, -offset));
+    const zone = () =>
+      levelOverview(s, day).find((group) => group.kind === "zone")!;
+    expect(zone().name).toBe("Prízemie – otvorený priestor");
+    expect(zone().level).toBe(1);
+    expect(zone().note).toMatch(/Vstupná chodba/);
+    expect(zone().note).toMatch(/zriedkavejšie/);
+    expect(levelOverview(s, day).some((group) => group.name === "Vstupná chodba")).toBe(
+      false,
+    );
+    expect(pickTasks(s, day, s.tasks, 30).some((item) => item.id === "zone-wipe")).toBe(
+      false,
+    );
+    did(s, clutter.id, day);
+    clutter.nextDue = shiftDay(day, 7);
+    expect(zone().level).not.toBe(3);
+    expect(zone().rooms.some((room) => room.name === "Vstupná chodba")).toBe(true);
   });
 
   it("round-trips the open-plan mark and still imports a backup without it", () => {

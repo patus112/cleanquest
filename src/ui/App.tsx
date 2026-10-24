@@ -151,7 +151,11 @@ export default function App() {
     }
   };
   const run = useCallback(
-    async (recipe: (s: State) => void, message?: string) => {
+    async (
+      recipe: (s: State) => void,
+      message?: string,
+      onError?: (message: string) => void,
+    ) => {
       setBusy(true);
       setError("");
       try {
@@ -164,7 +168,9 @@ export default function App() {
         }
         return true;
       } catch (err) {
-        setError(storageError(err));
+        const text = storageError(err);
+        setError(text);
+        onError?.(text);
         return false;
       } finally {
         setBusy(false);
