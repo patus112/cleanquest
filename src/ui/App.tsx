@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import {
   Home,
@@ -22,7 +22,8 @@ import { ensurePlans } from "../domain/scheduler";
 import { dayOf } from "../domain/commands";
 import { totalXp, levelFor } from "../domain/rewards";
 import { Button, LogoMark, type ModalType } from "./components";
-import { ShineBurst, SunnyWindow } from "./art";
+import { SunnyWindow } from "./art";
+import { CollectBurst } from "./CollectBurst";
 import Onboarding from "./Onboarding";
 import Dashboard from "./Dashboard";
 import Tasks from "./Tasks";
@@ -70,7 +71,18 @@ export default function App() {
     [busy, setBusy] = useState(false),
     [page, setPage] = useState(pageFromHash),
     [modal, setModal] = useState<ModalType>(null),
-    [offline, setOffline] = useState(!navigator.onLine);
+    [offline, setOffline] = useState(!navigator.onLine),
+    [award, setAward] = useState<{
+      xp: number;
+      from: number;
+      total: number;
+      key: number;
+    } | null>(null);
+  const stateRef = useRef(s);
+  useEffect(() => {
+    stateRef.current = s;
+  });
+  const dismissAward = useCallback(() => setAward(null), []);
   const [safety, setSafety] = useState<LocalSafety>(defaultSafety),
     [exporting, setExporting] = useState(false),
     [preparedBackup, setPreparedBackup] = useState<PreparedBackup | null>(null),
@@ -159,7 +171,27 @@ export default function App() {
       setBusy(true);
       setError("");
       try {
+        const previous = stateRef.current;
         const state = await repo.transact(recipe);
+        const added = state.completions.filter(
+          (item) =>
+            !item.undone &&
+            !previous.completions.some((old) => old.id === item.id),
+        );
+        const gained = added.reduce((sum, item) => sum + item.xp, 0);
+        const reverted = state.completions.some(
+          (item) =>
+            item.undone &&
+            previous.completions.some((old) => old.id === item.id && !old.undone),
+        );
+        if (reverted) setAward(null);
+        else if (gained > 0)
+          setAward({
+            xp: gained,
+            from: totalXp(previous),
+            total: totalXp(state),
+            key: Date.now(),
+          });
         publish(state);
         if (message) {
           setToast(message);
@@ -591,7 +623,9 @@ export default function App() {
           }
         />
       )}
-      {celebrate && <ShineBurst key={toast} />}
+      {award && (
+        <CollectBurst key={award.key} award={award} onDone={dismissAward} />
+      )}
       {busy && (
         <div className="saving" role="status">
           Ukladám…

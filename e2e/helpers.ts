@@ -4,7 +4,11 @@ import { tables, type State } from "../src/domain/model";
 export async function seed(page: Page, s = fixture()) {
   await page.clock.setFixedTime(now);
   await page.goto("./");
-  await expect(page.getByText("Začneme tvojím domovom.")).toBeVisible();
+  await expect(
+    page
+      .getByText("Začneme tvojím domovom.")
+      .or(page.getByRole("heading", { name: "Ahoj, Patricia." })),
+  ).toBeVisible();
   await page.evaluate(async (state) => {
     await new Promise<void>((resolve, reject) => {
       const request = indexedDB.open("cleanquest");

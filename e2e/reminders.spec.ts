@@ -53,7 +53,7 @@ test("daily reminders stay calm, dismiss for the day and link to laundry", async
   const reminder = page.getByRole("status", { name: "Malé pripomenutie" });
   await expect(reminder).toBeVisible();
   await expect(
-    reminder.getByRole("link", { name: "Na dnes zostávajú 3 kroky." }),
+    reminder.getByRole("link", { name: "Dnes ešte 1 malý krok." }),
   ).toBeVisible();
   await expect(
     reminder.getByRole("link", { name: "Pranie má pripravený ďalší krok." }),
@@ -124,7 +124,11 @@ test("daily reminders stay calm, dismiss for the day and link to laundry", async
   });
   await page.reload();
   await expect(reminder).toBeVisible();
-  await expect(reminder.getByText("3 sú ešte z tohto týždňa.")).toBeVisible();
+  await expect(
+    reminder.getByRole("link", { name: "Dnes ešte 1 malý krok." }),
+  ).toBeVisible();
+  await expect(reminder.getByText(/z tohto týždňa/)).toHaveCount(0);
+  await expect(reminder.getByText(/zostáva \d+/)).toHaveCount(0);
 });
 
 test("profile explains the iPhone shortcut without a push service", async ({

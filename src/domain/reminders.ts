@@ -1,12 +1,12 @@
 import type { State, Task } from "./model";
 import { dayOf } from "./commands";
 import { backupReminderDue, type LocalSafety } from "./localSafety";
-import { currentTasks } from "./scheduler";
+import { todayPace } from "./progress";
 
 export interface DailyReminderItems {
   day: string;
-  steps: number;
-  overdue: number;
+  /** One gentle line about today, or nothing. Never a count of the week backlog. */
+  line: string | null;
   laundry: number;
   backup: boolean;
 }
@@ -19,19 +19,6 @@ const countForm = (n: number) => {
   if (mod10 >= 2 && mod10 <= 4) return "few";
   return "many";
 };
-
-export function questLine(steps: number) {
-  const form = countForm(steps);
-  if (form === "one") return `Na dnes zostáva ${steps} krok.`;
-  if (form === "few") return `Na dnes zostávajú ${steps} kroky.`;
-  return `Na dnes zostáva ${steps} krokov.`;
-}
-
-export function overdueLine(count: number) {
-  if (count === 1) return "Jeden je ešte z tohto týždňa.";
-  if (countForm(count) === "few") return `${count} sú ešte z tohto týždňa.`;
-  return `${count} je ešte z tohto týždňa.`;
-}
 
 export function laundryLine(count: number) {
   const form = countForm(count);
@@ -56,11 +43,12 @@ export function collectDailyReminders(
   now = new Date(),
 ): DailyReminderItems {
   const day = dayOf(state, now);
-  const open = state.households.length ? currentTasks(state, day) : [];
+  // The old reminder counted every open occurrence from this week (due or
+  // overdue), ignoring the daily minute block and Ťažký deň. That number is
+  // not a goal. Speak only about today's rewarded time.
   return {
     day,
-    steps: open.length,
-    overdue: open.filter((item) => item.date < day).length,
+    line: state.households.length ? todayPace(state, now).line : null,
     laundry: pendingLaundry(state.tasks, day, now).length,
     backup: backupReminderDue(safety, now),
   };
@@ -68,7 +56,7 @@ export function collectDailyReminders(
 
 export function visibleReminder(items: DailyReminderItems, page: string) {
   return {
-    steps: items.steps > 0,
+    today: !!items.line,
     laundry: page !== "tasks" && items.laundry > 0,
     backup: page !== "profile" && items.backup,
   };

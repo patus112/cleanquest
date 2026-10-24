@@ -16,6 +16,7 @@ import {
   syncTierSuggestions,
 } from "./scheduler";
 import { balance, reconcile } from "./rewards";
+import { todayPace } from "./progress";
 import { featurePresent, syncObjectPlanLocation } from "./rooms";
 import {
   buildTierContext,
@@ -82,22 +83,14 @@ export function complete(
     const budget = s.dailyPlans.find((p) => p.date === day)!.timeBudget;
     if (used + task!.duration > budget)
       throw new Error(
-        "Dnešný čas na odmeňované úlohy je naplnený. Dopraj si pauzu.",
+        "Dnešné body sú pokope. Tento krok dnes ostáva na pokoji a body už nepribúdajú.",
       );
   }
   const extras = s.completions.filter(
     (c) => !c.undone && c.type === "extra" && c.day === day,
   );
   if (mode === "extra") {
-    const todayPlan = s.dailyPlans.find((p) => p.date === day)!;
-    if (
-      !todayPlan.occurrences.every((o) =>
-        s.completions.some(
-          (c) => !c.undone && c.type === "required" && c.occurrenceId === o.id,
-        ),
-      ) ||
-      currentTasks(s, day).length
-    )
+    if (!todayPace(s, now).goalMet)
       throw new Error("Najprv dokonči svoj denný plán.");
     if (
       extras.length >= 2 ||
