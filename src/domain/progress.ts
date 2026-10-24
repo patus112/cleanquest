@@ -89,9 +89,9 @@ export function todayPace(state: State, now = new Date()): TodayPace {
   // the locked plan is done, or nothing offered still fits.
   const goalMet =
     dayGoalMet(state, day, rescue) || (!hasStep && usedMinutes > 0);
+  // A met goal is already on the cards. The reminder only speaks when a step is left.
   let line: string | null = null;
-  if (goalMet) line = "Dnešný cieľ splnený 🎉";
-  else if (hasStep) line = "Dnes ešte 1 malý krok.";
+  if (!goalMet && hasStep) line = "Dnes ešte 1 malý krok.";
   return {
     usedMinutes,
     goalMinutes,
@@ -262,7 +262,7 @@ export function homeStory(state: State, now = new Date()): HomeStory {
   let detail = "Nemusíš zvládnuť všetko. Začni jednou malou vecou.";
   if (pace.goalMet) {
     headline = "Dnešný cieľ splnený";
-    detail = "Dnešný čas je pokope. Ďalšie je len bonus, keď budeš chcieť.";
+    detail = "Ak máš chuť, môžeš pokračovať bonusom.";
   } else if (rest) {
     headline = "Dnes máš voľno.";
     detail = "Oddych patrí do tvojho plánu.";

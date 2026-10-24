@@ -56,7 +56,7 @@ export function LevelOverview({
               {room.basics.length ? (
                 <ul aria-label={`Základ v ${room.name}`}>
                   {room.basics.map((item) => (
-                    <li key={item.id}>
+                    <li key={item.id} className={`level-row is-${item.status}`}>
                       <button
                         type="button"
                         className={`level-toggle${item.status === "done" ? " is-done" : ""}`}
@@ -77,8 +77,8 @@ export function LevelOverview({
                           );
                         }}
                       >
-                        <span aria-hidden="true">
-                          {item.status === "done" ? "✓" : "○"}
+                        <span className="level-mark" aria-hidden="true">
+                          {item.status === "done" ? "✓" : ""}
                         </span>
                       </button>
                       <span className="level-task-title">{item.title}</span>

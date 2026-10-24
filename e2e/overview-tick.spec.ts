@@ -241,10 +241,12 @@ test("every basic row can be ticked and a weekly hallway stays on Základ", asyn
   await hall
     .getByRole("button", { name: "Označiť ako hotové: Vyniesť jeden malý kôš" })
     .click();
-  await expect(
-    hall.getByRole("alert"),
-  ).toContainText("body sú pokope");
-  await expect(hall.getByText("dnes netreba").first()).toBeVisible();
+  await expect(page.getByText("Hotovo. Tento základ sa počíta.")).toBeVisible();
+  const earlyRow = hall.locator("li").filter({
+    hasText: "Vyniesť jeden malý kôš",
+  });
+  await expect(earlyRow).toContainText("hotové");
+  await expect(earlyRow).toHaveClass(/is-done/);
 
   await clutter.click();
   await expect(page.getByText("Hotovo. Tento základ sa počíta.")).toBeVisible();
@@ -276,8 +278,19 @@ test("every basic row can be ticked and a weekly hallway stays on Základ", asyn
       ?.type,
   ).toBe("required");
   expect(
-    stored.completions.some((item) => item.taskId === "early-bin" && !item.undone),
-  ).toBe(false);
+    stored.completions.find((item) => item.taskId === "early-bin" && !item.undone),
+  ).toMatchObject({ xp: 0 });
+  const marks = await hall.locator("li").evaluateAll((rows) =>
+    rows.map((row) =>
+      row.classList.contains("is-waiting")
+        ? 0
+        : row.classList.contains("is-later")
+          ? 1
+          : 2,
+    ),
+  );
+  expect(marks).toEqual([...marks].sort((a, b) => a - b));
+  await expect(hall.locator("li.is-waiting .level-task-title").first()).toBeVisible();
 
   await overview.evaluate((node) => node.scrollIntoView({ block: "start" }));
   if (info.project.name === "mobile-chromium")

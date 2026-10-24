@@ -38,7 +38,7 @@ function useCount(from: number, to: number, reduced: boolean) {
 }
 
 /** Sparkle in the app's green and gold. A fade stands in when motion is reduced. */
-function Confetti({ active }: { active: boolean }) {
+function Confetti({ active, count = 42 }: { active: boolean; count?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
@@ -63,8 +63,8 @@ function Confetti({ active }: { active: boolean }) {
     ];
     const originX = size.width * 0.5;
     const originY = size.height * 0.38;
-    const pieces = Array.from({ length: 42 }, (_, index) => {
-      const angle = (Math.PI * 2 * index) / 42 + Math.random() * 0.4;
+    const pieces = Array.from({ length: count }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / count + Math.random() * 0.4;
       const speed = 2.2 + Math.random() * 4.4;
       return {
         x: originX,
@@ -125,7 +125,7 @@ function Confetti({ active }: { active: boolean }) {
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [active]);
+  }, [active, count]);
   if (!active) return null;
   return <canvas ref={ref} aria-hidden="true" />;
 }
@@ -138,23 +138,32 @@ export function CollectBurst({
   onDone: () => void;
 }) {
   const reduced = motionReduced();
-  const shown = useCount(award.from, award.total, reduced);
+  const quiet = award.xp <= 0;
+  const shown = useCount(award.from, award.total, reduced || quiet);
   useEffect(() => {
-    const timer = window.setTimeout(onDone, reduced ? 1400 : 2600);
+    const timer = window.setTimeout(onDone, reduced || quiet ? 1400 : 2600);
     return () => window.clearTimeout(timer);
-  }, [award.key, onDone, reduced]);
+  }, [award.key, onDone, quiet, reduced]);
   const host =
     document.querySelector("dialog[open]") ?? document.body;
   return createPortal(
     <div
-      className={`collect-burst${reduced ? " is-reduced" : ""}`}
+      className={`collect-burst${reduced ? " is-reduced" : ""}${quiet ? " is-quiet" : ""}`}
       role="status"
       data-reduced={reduced ? "true" : "false"}
-      aria-label={`Plus ${award.xp} DA. Spolu ${award.total} DA.`}
+      aria-label={
+        quiet
+          ? `Zapísané. Spolu ${award.total} DA.`
+          : `Plus ${award.xp} DA. Spolu ${award.total} DA.`
+      }
     >
-      <Confetti active={!reduced} />
+      <Confetti active={!reduced} count={quiet ? 16 : 42} />
       <p className="collect-award">
-        <span className="collect-plus">+{award.xp} DA</span>
+        {quiet ? (
+          <span className="collect-note">Zapísané</span>
+        ) : (
+          <span className="collect-plus">+{award.xp} DA</span>
+        )}
         <span className="collect-total">spolu {shown} DA</span>
       </p>
     </div>,

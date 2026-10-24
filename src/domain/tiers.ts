@@ -550,19 +550,31 @@ export function levelOverview(s: State, day: Day): LevelGroupView[] {
   );
   const roomView = (roomId: string): LevelRoomView => {
     const room = s.rooms.find((item) => item.id === roomId);
+    const rank: Record<BasicToday, number> = {
+      waiting: 0,
+      later: 1,
+      done: 2,
+    };
     const basics = s.tasks
       .filter(
         (task) =>
           task.roomId === roomId && task.enabled && taskTier(task) === 1,
       )
-      .map((task) => ({
+      .map((task, index) => ({
         id: task.id,
         title: task.title,
+        index,
         status: (completedToday.has(task.id)
           ? "done"
           : task.nextDue <= day
             ? "waiting"
             : "later") as BasicToday,
+      }))
+      .sort((a, b) => rank[a.status] - rank[b.status] || a.index - b.index)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        status: item.status,
       }));
     return {
       roomId,

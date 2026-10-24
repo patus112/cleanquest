@@ -787,9 +787,25 @@ describe("cleaning tiers", () => {
       duration: 5,
       nextDue: shiftDay(day, 12),
     });
-    expect(() => toggleBasicToday(s, crowded.id, now)).toThrow(
-      /body sú pokope/,
+    const xp = s.completions
+      .filter((item) => !item.undone)
+      .reduce((sum, item) => sum + item.xp, 0);
+    toggleBasicToday(s, crowded.id, now);
+    const saved = s.completions.find(
+      (item) => item.taskId === crowded.id && !item.undone,
     );
+    expect(saved).toMatchObject({ xp: 0, day });
+    expect(
+      s.completions
+        .filter((item) => !item.undone)
+        .reduce((sum, item) => sum + item.xp, 0),
+    ).toBe(xp);
+    expect(
+      levelOverview(s, day)
+        .flatMap((group) => group.rooms)
+        .flatMap((room) => room.basics)
+        .find((item) => item.id === crowded.id)?.status,
+    ).toBe("done");
   });
 
   it("keeps a hallway of mixed basics on Základ and ticks one that did not fit today", () => {
@@ -891,7 +907,7 @@ describe("cleaning tiers", () => {
     );
     expect(recorded?.type).toBe("required");
     expect(recorded?.day).toBe(day);
-    expect(recorded?.xp).toBe(xpFor(5));
+    expect(recorded?.xp).toBe(0);
     expect(validateState(structuredClone(s)).completions).toContainEqual(recorded);
     const after = view("Vstupná chodba");
     expect(after.level).toBe(1);

@@ -82,10 +82,7 @@ export default function Dashboard({
       rewardEnabled: s.settings[0].monetary,
       restDays: s.settings[0].restDays,
     };
-  const extras = s.completions.filter(
-      (c) => !c.undone && c.day === day && c.type === "extra",
-    ),
-    options = story.goalMet && !story.rest ? extraOptions(s, day) : [],
+  const options = story.goalMet && !story.rest ? extraOptions(s, day) : [],
     [extraIndex, setExtraIndex] = useState(0),
     extra = options[extraIndex % Math.max(1, options.length)];
   const rhythm = useMemo(() => weekRhythm(s, day), [s, day]);
@@ -403,30 +400,55 @@ export default function Dashboard({
             {story.goalMet && <ShineBurst />}
             <h2>{story.headline}</h2>
             <p>{story.detail}</p>
-            {story.goalMet && !story.rest && extras.length < 2 && extra && (
-              <div className="next-actions">
-                <Button
-                  onClick={() =>
-                    void run(
-                      (state) => complete(state, extra.id, "extra"),
-                      "Hotovo. Dopraj si aj oddych.",
-                    )
-                  }
-                >
-                  <Check size={18} />
-                  Bonus · {extra.duration} min
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setExtraIndex(extraIndex + 1)}
-                >
-                  <RefreshCw size={18} />
-                  Iný bonus
-                </Button>
+            {story.goalMet && !story.rest && extra && (
+              <div className="bonus-offer">
+                <span className="room-chip">
+                  <RoomIcon
+                    category={
+                      s.rooms.find((room) => room.id === extra.roomId)
+                        ?.category || "other"
+                    }
+                    size={15}
+                  />
+                  {s.rooms.find((room) => room.id === extra.roomId)?.name ||
+                    "Miestnosť"}
+                </span>
+                <h3>{extra.title}</h3>
+                <div className="task-meta">
+                  <span>
+                    <Clock size={15} />
+                    {extra.duration} min
+                  </span>
+                  <span>bez bodov</span>
+                </div>
+                <div className="next-actions">
+                  <Button
+                    onClick={() =>
+                      void run(
+                        (state) => complete(state, extra.id, "extra"),
+                        "Bonus zapísaný, body na dnes už máš",
+                      )
+                    }
+                  >
+                    <Check size={18} />
+                    Hotovo
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setExtraIndex(extraIndex + 1)}
+                  >
+                    <RefreshCw size={18} />
+                    Iný bonus
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => open({ kind: "focus", taskId: extra.id })}
+                  >
+                    Začať
+                    <ArrowRight size={18} />
+                  </Button>
+                </div>
               </div>
-            )}
-            {story.goalMet && !story.rest && extras.length >= 2 && (
-              <h3>Na dnes stačí. Pokračujeme zajtra.</h3>
             )}
             <Button variant="secondary" onClick={() => navigate("ideas")}>
               Priestor pre nápady

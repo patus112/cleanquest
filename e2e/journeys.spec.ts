@@ -105,11 +105,13 @@ test("daily completion, two bounded extras, independent bonus, wallet and undo",
   await page.getByLabel("Na čo si odmenu použila?").fill("Kniha");
   await page.getByRole("button", { name: "Uložiť", exact: true }).click();
   await nav(page, "Domov");
-  for (let i = 0; i < 2; i++)
-    await page.getByRole("button", { name: /Bonus ·/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "Na dnes stačí. Pokračujeme zajtra." }),
-  ).toBeVisible();
+  for (let i = 0; i < 2; i++) {
+    const title = await page.locator(".bonus-offer h3").textContent();
+    await page.getByRole("button", { name: "Hotovo" }).click();
+    await expect(page.locator(".bonus-offer h3")).not.toHaveText(title || "");
+  }
+  await expect(page.getByText("bez bodov")).toBeVisible();
+  await expect(page.getByText("Na dnes stačí")).toHaveCount(0);
   expect(
     (await read(page)).completions.filter((c) => c.type === "extra"),
   ).toHaveLength(2);
@@ -118,9 +120,8 @@ test("daily completion, two bounded extras, independent bonus, wallet and undo",
     1765,
   );
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Na dnes stačí. Pokračujeme zajtra." }),
-  ).toBeVisible();
+  await expect(page.getByText("bez bodov")).toBeVisible();
+  await expect(page.getByText("Na dnes stačí")).toHaveCount(0);
   await nav(page, "Úlohy");
   await page.getByRole("tab", { name: "História" }).click();
   await page

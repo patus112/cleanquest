@@ -88,7 +88,7 @@ export default function Forms({
     </>
   );
   if (modal.kind === "focus")
-    return <Focus s={s} run={run} open={open} />;
+    return <Focus s={s} run={run} open={open} taskId={modal.taskId} />;
   if (modal.kind === "layout")
     return (
       <RoomLayoutEditor s={s} run={run} open={open} roomId={modal.roomId} />
